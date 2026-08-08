@@ -5,17 +5,12 @@ export async function validatePayment(
   couponCode?: string
 ): Promise<boolean> {
 
-  /*
-  // ============================================================
-  // IMPLEMENTACIÓN REAL - DESCOMENTAR CUANDO TENGAMOS API DE PAGO
-  // ============================================================
-
   const { data: sessionData } = await supabase.auth.getSession()
 
   const accessToken = sessionData.session?.access_token
 
   if (!accessToken) {
-    throw new Error('Debes autenticarte antes de pagar.')
+    throw new Error('Debes autenticarte antes de continuar.')
   }
 
   const res = await fetch(
@@ -34,20 +29,13 @@ export async function validatePayment(
     }
   )
 
-  if (!res.ok) {
-    return false
-  }
-
   const data = await res.json()
 
+  if (!res.ok) {
+    throw new Error(
+      data?.error || 'No se pudo habilitar el test Premium.'
+    )
+  }
+
   return data.paid === true
-  */
-
-  // ============================================================
-  // TEMPORAL
-  // Mientras no exista la integración QR + callback bancario,
-  // permitimos continuar siempre.
-  // ============================================================
-
-  return true
 }
