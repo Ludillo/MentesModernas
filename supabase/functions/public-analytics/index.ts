@@ -2,7 +2,13 @@ import { corsHeaders, json } from '../_shared/cors.ts'
 import { adminDb } from '../_shared/supabase.ts'
 
 Deno.serve(async(req)=>{
-  if(req.method==='OPTIONS')return new Response('ok',{headers:corsHeaders(req)})
+  
+  if (req.method === 'OPTIONS') {
+  return new Response(null, {
+    status: 204,
+    headers: corsHeaders(req)
+  })
+}
   if(req.method!=='POST')return json(req,{error:'Method not allowed'},405)
   try{
     const b=await req.json()
