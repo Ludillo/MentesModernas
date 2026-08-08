@@ -1,0 +1,25 @@
+project_id = "mentesmodernas"
+
+[functions.admin-request-otp]
+verify_jwt = false
+
+[functions.admin-verify]
+verify_jwt = false
+
+[functions.admin-api]
+verify_jwt = false
+
+[functions.admin-upload-logo]
+verify_jwt = false
+
+[functions.public-contact]
+verify_jwt = false
+
+[functions.public-analytics]
+verify_jwt = false
+
+[functions.payment-check]
+verify_jwt = false
+
+[functions.submit-premium-result]
+verify_jwt = false
