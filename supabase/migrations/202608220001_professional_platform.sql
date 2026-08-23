@@ -3,6 +3,7 @@ alter table public.test_types add column if not exists icon text not null defaul
 alter table public.test_types add column if not exists sort_order integer not null default 0;
 alter table public.test_versions add column if not exists instructions text;
 alter table public.test_versions add column if not exists result_labels jsonb not null default '{}'::jsonb;
+alter table public.test_questions alter column dimension_code type text;
 alter table public.test_questions add column if not exists weight numeric(8,2) not null default 1;
 alter table public.payments add column if not exists receipt_url text;
 alter table public.payments add column if not exists payer_name text;
