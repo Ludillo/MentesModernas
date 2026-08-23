@@ -39,3 +39,9 @@ export async function validatePayment(
 
   return data.paid === true
 }
+
+export async function submitPaymentReceipt(productCode:string,file:File,payerName:string,reference:string){
+ const {data}=await supabase.auth.getSession();const token=data.session?.access_token;if(!token)throw new Error('Debes autenticarte.')
+ const form=new FormData();form.set('productCode',productCode);form.set('receipt',file);form.set('payerName',payerName);form.set('reference',reference)
+ const res=await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/payment-submit`,{method:'POST',headers:{Authorization:`Bearer ${token}`,apikey:import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY},body:form});const body=await res.json();if(!res.ok)throw new Error(body.error);return body
+}

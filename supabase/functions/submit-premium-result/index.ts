@@ -20,7 +20,7 @@ Deno.serve(async(req)=>{
     const testCode=String(b.testCode??'')
     const answers=b.answers??{}
 
-    if(testCode!=='VOCATIONAL_PREMIUM') return json(req,{error:'Test inválido.'},400)
+    if(!testCode.endsWith('_PREMIUM')) return json(req,{error:'Test inválido.'},400)
 
     const {data:version,error:ve}=await db.from('test_versions')
       .select('id,test_type_id,question_count')
@@ -50,12 +50,12 @@ Deno.serve(async(req)=>{
       const maxScore=counts[code]*4
       return {
         code,
-        name:AREA_META[code].name,
+        name:AREA_META[code]?.name ?? code.replaceAll('_',' '),
         score:totals[code],
         maxScore,
         percent:maxScore?Math.round(totals[code]/maxScore*100):0,
-        description:AREA_META[code].description,
-        careers:AREA_META[code].careers
+        description:AREA_META[code]?.description ?? 'Una de tus dimensiones más destacadas en esta evaluación.',
+        careers:AREA_META[code]?.careers ?? []
       }
     }).sort((a,b)=>b.percent-a.percent)
 

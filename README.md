@@ -240,6 +240,7 @@ supabase functions deploy admin-upload-logo
 supabase functions deploy public-contact
 supabase functions deploy public-analytics
 supabase functions deploy payment-check
+supabase functions deploy payment-submit
 supabase functions deploy submit-premium-result
 ```
 

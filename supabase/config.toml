@@ -21,5 +21,8 @@ verify_jwt = false
 [functions.payment-check]
 verify_jwt = false
 
+[functions.payment-submit]
+verify_jwt = false
+
 [functions.submit-premium-result]
 verify_jwt = false

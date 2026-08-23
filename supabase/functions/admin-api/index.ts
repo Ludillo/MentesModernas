@@ -55,13 +55,54 @@ Deno.serve(async (req) => {
 
     if (action === 'payments-list') {
       const { data, error } = await db.from('payments')
-        .select('id,created_at,amount,currency,status,profiles(email),test_products(name),coupons(code)')
+        .select('id,created_at,amount,currency,status,receipt_url,payer_name,payer_reference,profiles(email),test_products(name),coupons(code)')
         .order('created_at',{ascending:false}).limit(500)
       if(error)throw error
-      const items=(data??[]).map((x:any)=>({
-        ...x,email:x.profiles?.email,product_name:x.test_products?.name,coupon_code:x.coupons?.code
+      const items=await Promise.all((data??[]).map(async(x:any)=>{
+        let receipt_url=x.receipt_url
+        if(receipt_url){const {data:signed}=await db.storage.from('payment-receipts').createSignedUrl(receipt_url,900);receipt_url=signed?.signedUrl??receipt_url}
+        return {...x,receipt_url,email:x.profiles?.email,product_name:x.test_products?.name,coupon_code:x.coupons?.code}
       }))
       return json(req,{items})
+    }
+
+    if (action === 'payment-review') {
+      const id=String(body.id??''), status=String(body.status??'')
+      if(!['PAID','FAILED','CANCELLED'].includes(status))return json(req,{error:'Estado inválido'},400)
+      const {data:payment,error:pe}=await db.from('payments').update({status,paid_at:status==='PAID'?new Date().toISOString():null,reviewed_at:new Date().toISOString(),reviewed_by:admin.id}).eq('id',id).select('id,user_id,product_id').single()
+      if(pe)throw pe
+      if(status==='PAID'){
+        const {data:existing}=await db.from('test_entitlements').select('id').eq('payment_id',id).maybeSingle()
+        if(!existing){const {error}=await db.from('test_entitlements').insert({user_id:payment.user_id,product_id:payment.product_id,payment_id:id,status:'AVAILABLE'});if(error)throw error}
+      }
+      await db.from('admin_audit_log').insert({admin_id:admin.id,action:'PAYMENT_'+status,entity:'payments',entity_id:id})
+      return json(req,{ok:true})
+    }
+
+    if(action==='users-list'){
+      const {data,error}=await db.from('profiles').select('id,email,full_name,created_at').order('created_at',{ascending:false}).limit(500);if(error)throw error;return json(req,{items:data})
+    }
+
+    if(action==='access-grant'){
+      const email=String(body.email??'').trim().toLowerCase(), productCode=String(body.productCode??'')
+      const {data:user}=await db.from('profiles').select('id').ilike('email',email).single()
+      const {data:product}=await db.from('test_products').select('id').eq('code',productCode).eq('access_level','PREMIUM').single()
+      if(!user||!product)return json(req,{error:'Usuario o test no encontrado'},404)
+      const {error}=await db.from('test_entitlements').insert({user_id:user.id,product_id:product.id,payment_id:null,status:'AVAILABLE'});if(error)throw error
+      await db.from('admin_audit_log').insert({admin_id:admin.id,action:'ACCESS_GRANT',entity:'test_entitlements',payload:{email,productCode}});return json(req,{ok:true})
+    }
+
+    if(action==='tests-list'){
+      const {data,error}=await db.from('test_types').select('*,test_versions(*,test_questions(count),test_products(*))').order('sort_order');if(error)throw error;return json(req,{items:data})
+    }
+
+    if(action==='question-save'){
+      const item=body.item as any
+      const {error}=await db.from('test_questions').upsert({id:item.id||undefined,test_version_id:item.testVersionId,number:Number(item.number),dimension_code:String(item.dimensionCode),prompt:String(item.prompt),weight:Number(item.weight||1),is_active:item.isActive!==false});if(error)throw error;return json(req,{ok:true})
+    }
+
+    if(action==='coupon-toggle'){
+      const {error}=await db.from('coupons').update({is_active:Boolean(body.isActive)}).eq('id',String(body.id));if(error)throw error;return json(req,{ok:true})
     }
 
     if (action === 'contacts-list') {

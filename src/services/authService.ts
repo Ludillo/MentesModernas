@@ -27,6 +27,18 @@ export async function verifyEmailOtp(email: string, token: string) {
   return data
 }
 
+export async function signUpWithPassword(email: string, password: string, fullName: string) {
+  const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: fullName } } })
+  if (error) throw error
+  return data
+}
+
+export async function signInWithPassword(email: string, password: string) {
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+  if (error) throw error
+  return data
+}
+
 export async function signOut() {
   await supabase.auth.signOut()
 }

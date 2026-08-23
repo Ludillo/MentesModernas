@@ -14,6 +14,7 @@ import AccountPage from './pages/AccountPage'
 import ContactPage from './pages/ContactPage'
 import AdminLoginPage from './pages/AdminLoginPage'
 import AdminDashboardPage from './pages/AdminDashboardPage'
+import GenericTestPage from './pages/GenericTestPage'
 
 export default function App(){
   const [showSplash, setShowSplash] = useState(() => sessionStorage.getItem('mm_seen_splash') !== '1')
@@ -42,6 +43,8 @@ export default function App(){
         <Route path="/ingresar" element={<AuthPage/>}/>
         <Route path="/cuenta" element={<AccountPage/>}/>
         <Route path="/contacto" element={<ContactPage/>}/>
+        <Route path="/test/:code" element={<GenericTestPage/>}/>
+        <Route path="/acceso/:code" element={<PremiumVocationalPage/>}/>
       </Route>
       <Route path="/admin/login" element={<AdminLoginPage/>}/>
       <Route path="/admin" element={<AdminDashboardPage/>}/>

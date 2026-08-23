@@ -1,6 +1,15 @@
 import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { supabase } from '../lib/supabase'
 
 export default function TestsPage() {
+  const [items,setItems]=useState<any[]>([])
+  useEffect(()=>{supabase.rpc('get_test_catalog').then(({data})=>setItems(data??[]))},[])
+  const fallback=[
+    {type_code:'VOCATIONAL',name:'Orientación Vocacional',description:'Explora intereses ocupacionales mediante seis áreas RIASEC.',icon:'🧭',free_code:'VOCATIONAL_FREE',free_questions:35,premium_code:'VOCATIONAL_PREMIUM',premium_questions:72,price:50,currency:'BOB'},
+    {type_code:'LEARNING_STYLE',name:'Estilo de Aprendizaje',description:'Descubre cómo asimilas y organizas mejor la información.',icon:'📚',free_code:'LEARNING_STYLE_FREE',free_questions:12,premium_code:'LEARNING_STYLE_PREMIUM',premium_questions:24,price:40,currency:'BOB'},
+    {type_code:'PERSONAL_STRENGTHS',name:'Fortalezas Personales',description:'Reconoce tus recursos personales más consistentes.',icon:'💪',free_code:'PERSONAL_STRENGTHS_FREE',free_questions:12,premium_code:'PERSONAL_STRENGTHS_PREMIUM',premium_questions:24,price:40,currency:'BOB'}]
+  const catalog=items.length?items:fallback
   return (
     <main className="page section">
       <div className="page-hero compact">
@@ -9,25 +18,11 @@ export default function TestsPage() {
         <p>Empieza gratis y profundiza solo si el resultado te resulta útil.</p>
       </div>
 
-      <div className="product-grid">
-        <article className="product-card">
-          <div className="module-icon">🧭</div>
-          <h2>Orientación Vocacional</h2>
-          <p>Perfil basado en seis grandes áreas de interés ocupacional.</p>
-          <ul><li>35 preguntas gratis</li><li>Resultado principal inmediato</li><li>Sin registro</li></ul>
-          <Link className="btn primary" to="/tests/vocacional">Ver opciones</Link>
-        </article>
-        <article className="product-card coming">
-          <div className="module-icon">📚</div><h2>Estilo de Aprendizaje</h2>
-          <p>Recomendaciones para estudiar y aprender de una manera más compatible contigo.</p>
-          <span className="badge">PRÓXIMAMENTE</span>
-        </article>
-        <article className="product-card coming">
-          <div className="module-icon">💥</div><h2>Fortalezas Personales</h2>
-          <p>Un mapa simple de creatividad, empatía, disciplina, liderazgo y otras fortalezas.</p>
-          <span className="badge">PRÓXIMAMENTE</span>
-        </article>
-      </div>
+      <div className="product-grid">{catalog.map(x=><article className="product-card" key={x.type_code}>
+        <div className="module-icon">{x.icon}</div><h2>{x.name}</h2><p>{x.description}</p>
+        <ul><li>{x.free_questions} preguntas gratis</li><li>{x.premium_questions} preguntas avanzadas</li><li>Resultado inmediato</li></ul>
+        <div className="card-actions"><Link className="btn secondary" to={`/test/${x.free_code}`}>Comenzar gratis</Link><Link className="btn primary" to={`/acceso/${x.premium_code}`}>Avanzado · {x.price} {x.currency}</Link></div>
+      </article>)}</div>
     </main>
   )
 }

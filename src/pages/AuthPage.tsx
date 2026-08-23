@@ -3,6 +3,7 @@ import {
   sendEmailOtp,
   signInWithGoogle,
   verifyEmailOtp
+  ,signInWithPassword, signUpWithPassword
 } from '../services/authService'
 import { useNavigate } from 'react-router-dom'
 
@@ -11,6 +12,9 @@ export default function AuthPage() {
   const [otp, setOtp] = useState('')
   const [sent, setSent] = useState(false)
   const [msg, setMsg] = useState('')
+  const [password,setPassword]=useState('')
+  const [fullName,setFullName]=useState('')
+  const [mode,setMode]=useState<'password'|'otp'>('password')
 
   const navigate = useNavigate()
 
@@ -101,6 +105,8 @@ export default function AuthPage() {
           <span>o</span>
         </div>
 
+        <div className="auth-tabs"><button className={mode==='password'?'active':''} onClick={()=>setMode('password')}>Contraseña</button><button className={mode==='otp'?'active':''} onClick={()=>setMode('otp')}>Código por correo</button></div>
+
         <label>
           Correo electrónico
 
@@ -113,7 +119,11 @@ export default function AuthPage() {
           />
         </label>
 
-        {!sent ? (
+        {mode==='password' ? <>
+          <label>Nombre (solo para registro)<input value={fullName} onChange={e=>setFullName(e.target.value)} autoComplete="name" /></label>
+          <label>Contraseña<input type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password" minLength={8}/></label>
+          <div className="card-actions"><button className="btn primary" onClick={async()=>{try{await signInWithPassword(email,password);navigate('/cuenta')}catch(e:any){setMsg(e.message)}}}>Ingresar</button><button className="btn secondary" onClick={async()=>{try{await signUpWithPassword(email,password,fullName);setMsg('Cuenta creada. Revisa tu correo si se requiere confirmación.')}catch(e:any){setMsg(e.message)}}}>Crear cuenta</button></div>
+        </> : !sent ? (
           <button
             type="button"
             className="btn primary full"
@@ -157,4 +167,4 @@ export default function AuthPage() {
       </section>
     </main>
   )
-} 
+}

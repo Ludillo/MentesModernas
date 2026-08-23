@@ -8,6 +8,12 @@ export default function Layout() {
   const location = useLocation()
   const [logo, setLogo] = useState(fallbackLogo)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [theme, setTheme] = useState(() => localStorage.getItem('mm_theme') || 'dark')
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    localStorage.setItem('mm_theme', theme)
+  }, [theme])
 
   useEffect(() => {
     trackPage(location.pathname)
@@ -65,6 +71,12 @@ export default function Layout() {
           <Link to="/tests">Tests</Link>
           <Link to="/contacto">Contáctate con nosotros</Link>
           <Link to="/cuenta">Mi cuenta</Link>
+          <label className="theme-picker" aria-label="Tema visual">
+            <span>◐</span>
+            <select value={theme} onChange={e=>setTheme(e.target.value)}>
+              <option value="dark">Dark</option><option value="mid">Intermedio</option><option value="light">Claro</option>
+            </select>
+          </label>
         </nav>
       </header>
 
@@ -75,6 +87,7 @@ export default function Layout() {
         <span>
           Explora tus intereses, fortalezas y decisiones con una experiencia inmersiva.
         </span>
+        <span className="footer-credit">Hecho por <strong>ARPALSOFT</strong></span>
       </footer>
     </div>
   )

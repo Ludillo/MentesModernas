@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { adminApi, clearAdminSession, getAdminSession, uploadLogo } from '../services/adminService'
 import { useNavigate } from 'react-router-dom'
 
-type Tab='overview'|'content'|'payments'|'contacts'|'visits'|'coupons'|'security'
+type Tab='overview'|'content'|'payments'|'contacts'|'visits'|'coupons'|'users'|'tests'|'reports'|'security'
 
 export default function AdminDashboardPage() {
   const [tab,setTab]=useState<Tab>('overview')
@@ -16,7 +16,7 @@ export default function AdminDashboardPage() {
   const load=async(t:Tab=tab)=>{
     setError('')
     try {
-      const action = t==='overview'?'dashboard':t==='content'?'content-list':t==='payments'?'payments-list':t==='contacts'?'contacts-list':t==='visits'?'analytics-summary':t==='coupons'?'coupons-list':'me'
+      const action = t==='overview'?'dashboard':t==='content'?'content-list':t==='payments'?'payments-list':t==='contacts'?'contacts-list':t==='visits'||t==='reports'?'analytics-summary':t==='coupons'?'coupons-list':t==='users'?'users-list':t==='tests'?'tests-list':'me'
       setData(await adminApi(action))
     } catch(e:any){setError(e.message)}
   }
@@ -46,7 +46,7 @@ export default function AdminDashboardPage() {
         <h2>MentesModernas</h2><span>Panel administrativo</span>
         {[
           ['overview','Resumen'],['content','Contenido'],['payments','Pagos'],['contacts','Mensajes'],
-          ['visits','Visitas'],['coupons','Cupones'],['security','Seguridad']
+          ['visits','Visitas'],['coupons','Cupones'],['users','Usuarios y accesos'],['tests','Tests y preguntas'],['reports','Reportes'],['security','Seguridad']
         ].map(([k,l])=><button key={k} className={tab===k?'active':''} onClick={()=>setTab(k as Tab)}>{l}</button>)}
         <button onClick={()=>{clearAdminSession();navigate('/admin/login')}}>Cerrar sesión</button>
       </aside>
@@ -79,7 +79,7 @@ export default function AdminDashboardPage() {
           </div>
         </>}
 
-        {tab==='payments' && data && <Table rows={data.items??[]} columns={['created_at','email','product_name','amount','currency','status','coupon_code']}/>}
+        {tab==='payments' && data && <><Table rows={data.items??[]} columns={['id','created_at','email','product_name','amount','currency','status','receipt_url','coupon_code']}/><ActionBox title="Revisar pago" fields="ID del pago,Estado (PAID/FAILED/CANCELLED)" onRun={async v=>{await adminApi('payment-review',{id:v[0],status:v[1].toUpperCase()});load('payments')}}/></>}
         {tab==='contacts' && data && <Table rows={data.items??[]} columns={['created_at','name','email','phone','message','status']}/>}
         {tab==='visits' && data && <>
           <div className="stat-grid"><Stat label="Hoy" value={data.today}/><Stat label="7 días" value={data.last7d}/><Stat label="30 días" value={data.last30d}/><Stat label="Visitantes únicos 30d" value={data.unique30d}/></div>
@@ -89,6 +89,9 @@ export default function AdminDashboardPage() {
           <button className="btn primary" onClick={createCoupon}>+ Crear cupón</button>
           <Table rows={data.items??[]} columns={['code','discount_type','discount_value','max_uses','uses_count','valid_until','is_active']}/>
         </>}
+        {tab==='users' && data && <><Table rows={data.items??[]} columns={['email','full_name','created_at']}/><ActionBox title="Autorizar acceso manual" fields="Correo del usuario,Código Premium del test" onRun={async v=>{await adminApi('access-grant',{email:v[0],productCode:v[1].toUpperCase()});alert('Acceso autorizado')}}/></>}
+        {tab==='tests' && data && <><Table rows={(data.items??[]).map((x:any)=>({code:x.code,name:x.name,status:x.status,versions:x.test_versions?.length??0}))} columns={['code','name','status','versions']}/><p className="admin-hint">El catálogo, versiones y cantidad de preguntas se leen desde la base de datos. Usa el editor de preguntas para agregar o actualizar ítems.</p><ActionBox title="Guardar pregunta" fields="ID versión,Número,Dimensión,Pregunta" onRun={async v=>{await adminApi('question-save',{item:{testVersionId:v[0],number:v[1],dimensionCode:v[2],prompt:v[3]}});load('tests')}}/></>}
+        {tab==='reports' && data && <><div className="stat-grid"><Stat label="Visitas 7 días" value={data.last7d}/><Stat label="Visitas 30 días" value={data.last30d}/><Stat label="Usuarios únicos" value={data.unique30d}/></div><Table rows={data.topPages??[]} columns={['path','views']}/><button className="btn secondary" onClick={()=>window.print()}>Imprimir / guardar PDF</button></>}
         {tab==='security' && <SecurityPanel/>}
       </section>
     </main>
@@ -103,3 +106,4 @@ function SecurityPanel(){
   const changeEmail=async()=>{try{await adminApi('change-email',{currentPassword,newEmail});setMsg('Correo actualizado. Cierra sesión y vuelve a ingresar con el nuevo correo.')}catch(e:any){setMsg(e.message)}}
   return <div className="admin-card"><h2>Seguridad administrativa</h2><label>Contraseña actual<input type="password" value={currentPassword} onChange={e=>setCurrent(e.target.value)}/></label><hr/><label>Nuevo correo<input value={newEmail} onChange={e=>setNewEmail(e.target.value)}/></label><button className="btn secondary" onClick={changeEmail}>Cambiar correo</button><hr/><label>Nueva contraseña<input type="password" value={newPassword} onChange={e=>setNew(e.target.value)}/></label><button className="btn primary" onClick={change}>Actualizar contraseña</button>{msg&&<div className="alert">{msg}</div>}</div>
 }
+function ActionBox({title,fields,onRun}:{title:string,fields:string,onRun:(values:string[])=>Promise<void>}){const labels=fields.split(',');const [values,setValues]=useState(labels.map(()=>''));const [msg,setMsg]=useState('');return <div className="admin-card"><h2>{title}</h2>{labels.map((l,i)=><label key={l}>{l}<input value={values[i]} onChange={e=>setValues(v=>v.map((x,j)=>j===i?e.target.value:x))}/></label>)}<button className="btn primary" onClick={async()=>{try{await onRun(values);setMsg('Operación completada.')}catch(e:any){setMsg(e.message)}}}>Guardar</button>{msg&&<div className="alert">{msg}</div>}</div>}

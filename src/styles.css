@@ -441,3 +441,6 @@ table{min-width:760px}
   .mobile-menu-button span{width:20px}
   .topbar .main-nav{left:8px;right:8px}
 }
+html[data-theme="light"]{--bg:#f3f6fc;--surface:#ffffff;--surface-2:#e9eef9;--text:#14203b;--muted:#5f6e89;--line:rgba(20,32,59,.14);color-scheme:light}
+html[data-theme="mid"]{--bg:#17213a;--surface:#202d4b;--surface-2:#2a3859;--text:#f2f5ff;--muted:#b2bdd3;--line:rgba(210,224,255,.16);color-scheme:dark}
+.theme-picker{display:flex;align-items:center;gap:7px;margin:0}.theme-picker select{padding:9px;border-radius:10px}.footer-credit{margin-left:auto}.card-actions,.auth-tabs{display:flex;gap:10px;flex-wrap:wrap}.auth-tabs button{flex:1;padding:10px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--text)}.auth-tabs button.active{border-color:var(--cyan);color:var(--cyan)}

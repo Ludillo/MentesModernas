@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { Link, useNavigate } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
+import { submitPaymentReceipt, validatePayment } from '../services/paymentService'
 
 export default function PremiumVocationalPage() {
   const [session, setSession] = useState<any>(null)
   const [checking, setChecking] = useState(false)
   const [message, setMessage] = useState('')
   const navigate = useNavigate()
+  const { code = 'VOCATIONAL_PREMIUM' } = useParams()
+  const [coupon,setCoupon]=useState('')
+  const [receipt,setReceipt]=useState<File|null>(null);const [payerName,setPayerName]=useState('');const [reference,setReference]=useState('')
 
   useEffect(() => {
     supabase.auth
@@ -49,15 +54,8 @@ export default function PremiumVocationalPage() {
     setMessage('')
 
     try {
-      // ==========================================================
-      // TEMPORAL - PREMIUM ABIERTO PARA PRUEBAS
-      // No valida pago ni cupón.
-      //
-      // Cuando habilitemos nuevamente pago/cupon:
-      // eliminar este bypass y volver a validatePayment(...)
-      // ==========================================================
-
-      navigate('/premium/vocacional/test')
+      await validatePayment(code,coupon)
+      navigate(`/test/${code}`)
 
     } catch (e: any) {
       setMessage(
@@ -79,17 +77,15 @@ export default function PremiumVocationalPage() {
           </span>
 
           <h1>
-            Perfil Vocacional Premium
+            Evaluación avanzada
           </h1>
 
           <p>
-            La versión Premium está habilitada temporalmente
-            para pruebas y evaluación del test completo.
+            Accede con un cupón válido o envía tu comprobante de pago QR para revisión.
           </p>
 
           <p>
-            Actualmente no es necesario realizar pago ni ingresar
-            un código de cupón.
+            El acceso queda asociado a tu cuenta y a esta evaluación específica.
           </p>
         </section>
 
@@ -97,28 +93,29 @@ export default function PremiumVocationalPage() {
 
           <div className="qr-placeholder">
             <div className="qr-grid">
-              PREMIUM
+              QR
             </div>
           </div>
 
           <strong>
-            Acceso Premium habilitado
+            Acceso seguro
           </strong>
 
           <p>
-            El pago mediante QR y la validación de cupones
-            serán habilitados posteriormente.
+            Ingresa un cupón. Para pagos QR, envía el comprobante mediante el formulario de contacto indicando tu correo y el test; el administrador podrá aprobarlo.
           </p>
+
+          <label>Cupón de acceso<input value={coupon} onChange={e=>setCoupon(e.target.value.toUpperCase())} placeholder="EJEMPLO100" /></label>
 
           <button
             type="button"
             className="btn primary full"
-            disabled={checking}
+            disabled={checking || !coupon.trim()}
             onClick={continuePremium}
           >
             {checking
               ? 'Ingresando...'
-              : 'Probar Test Premium'}
+              : 'Validar cupón y acceder'}
           </button>
 
           {message && (
@@ -126,6 +123,11 @@ export default function PremiumVocationalPage() {
               {message}
             </div>
           )}
+          <div className="separator"><span>o paga por QR</span></div>
+          <label>Nombre del pagador<input value={payerName} onChange={e=>setPayerName(e.target.value)}/></label>
+          <label>Referencia bancaria<input value={reference} onChange={e=>setReference(e.target.value)}/></label>
+          <label>Comprobante (JPG, PNG o PDF)<input type="file" accept="image/png,image/jpeg,application/pdf" onChange={e=>setReceipt(e.target.files?.[0]||null)}/></label>
+          <button className="btn secondary full" disabled={!receipt||checking} onClick={async()=>{if(!receipt)return;setChecking(true);try{await submitPaymentReceipt(code,receipt,payerName,reference);setMessage('Comprobante recibido. Te avisaremos cuando el administrador apruebe el acceso.')}catch(e:any){setMessage(e.message)}finally{setChecking(false)}}}>Enviar comprobante</button>
 
         </section>
 
