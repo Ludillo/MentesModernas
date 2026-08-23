@@ -33,6 +33,14 @@ export default function AccountPage() {
         <div><span className="eyebrow">MI CUENTA</span><h1>{session.user.user_metadata?.full_name ?? session.user.email}</h1></div>
         <button className="btn secondary" onClick={async()=>{await signOut(); location.reload()}}>Cerrar sesión</button>
       </div>
+      <section className="account-history-section">
+        <h2>Mi historial de resultados</h2>
+        <p className="section-lead">Consulta nuevamente los informes de los tests que ya completaste.</p>
+        <div className="history-list">
+          {evaluations.length ? evaluations.map((x:any)=><Link key={x.id} to={`/resultado/${x.id}`}><b>{x.test_types?.name}</b><span>{new Date(x.completed_at).toLocaleDateString()}</span></Link>) : <p>Aún no tienes evaluaciones avanzadas finalizadas.</p>}
+        </div>
+      </section>
+      <section className="account-tests-section">
       <h2>Tests disponibles</h2>
       <p className="section-lead">Elige el test que deseas realizar. Todos tienen una versión gratuita y otra avanzada.</p>
       <div className="account-test-grid">
@@ -48,10 +56,7 @@ export default function AccountPage() {
           </article>
         })}
       </div>
-      <h2>Mis resultados</h2>
-      <div className="history-list">
-        {evaluations.length ? evaluations.map((x:any)=><Link key={x.id} to={`/resultado/${x.id}`}><b>{x.test_types?.name}</b><span>{new Date(x.completed_at).toLocaleDateString()}</span></Link>) : <p>Aún no tienes evaluaciones Premium finalizadas.</p>}
-      </div>
+      </section>
     </main>
   )
 }
