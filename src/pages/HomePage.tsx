@@ -18,17 +18,17 @@ export default function HomePage() {
     <main>
       <section className="home-hero neuro-home-hero">
         <div className="hero-copy">
-          <span className="eyebrow">EXPERIENCIA INMERSIVA · MENTESMODERNAS</span>
+          <span className="eyebrow">DESCUBRE · CONECTA · DECIDE</span>
           <h1>{hero.title}</h1>
           <p>{hero.subtitle}</p>
           <div className="hero-actions">
             <Link className="btn primary large" to="/tests">{hero.cta}</Link>
-            <Link className="btn ghost large" to="/contacto">Hablar con un psicólogo</Link>
+            <Link className="btn ghost large" to="/contacto">Solicitar orientación</Link>
           </div>
           <div className="hero-metrics">
-            <span><b>35 preguntas</b><small>Ruta gratuita inicial</small></span>
-            <span><b>72+ preguntas</b><small>Versión premium avanzada</small></span>
-            <span><b>Resultados claros</b><small>Áreas, afinidades y apoyo profesional</small></span>
+            <span><b>3 evaluaciones</b><small>Vocación, aprendizaje y fortalezas</small></span>
+            <span><b>Gratis + Avanzado</b><small>Profundiza cuando estés listo</small></span>
+            <span><b>Resultados claros</b><small>Información útil para decidir</small></span>
           </div>
         </div>
         <LogoHero src={content.brand?.logo_url} />
@@ -46,15 +46,17 @@ export default function HomePage() {
             <span className="badge live">DISPONIBLE</span>
             <h3>Orientación Vocacional</h3>
             <p>Explora intereses, áreas y posibilidades de carrera con una experiencia gratuita y otra premium mucho más detallada.</p>
-            <Link to="/tests/vocacional">Explorar →</Link>
+            <Link to="/tests">Explorar →</Link>
           </article>
           <article className="module-card intense-card">
-            <div className="module-icon">🧠</div><span className="badge">PRÓXIMAMENTE</span>
+            <div className="module-icon">📚</div><span className="badge live">DISPONIBLE</span>
             <h3>Estilo de Aprendizaje</h3><p>Conoce cómo aprendes mejor y cómo mejorar tu rendimiento de estudio.</p>
+            <Link to="/test/LEARNING_STYLE_FREE">Comenzar gratis →</Link>
           </article>
           <article className="module-card intense-card">
-            <div className="module-icon">⚡</div><span className="badge">PRÓXIMAMENTE</span>
+            <div className="module-icon">✦</div><span className="badge live">DISPONIBLE</span>
             <h3>Fortalezas Personales</h3><p>Identifica tus talentos, recursos personales y tu potencial para destacar.</p>
+            <Link to="/test/PERSONAL_STRENGTHS_FREE">Comenzar gratis →</Link>
           </article>
         </div>
       </section>
