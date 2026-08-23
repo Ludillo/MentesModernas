@@ -3,7 +3,7 @@ import { adminApi, clearAdminSession, getAdminSession, uploadLogo } from '../ser
 import { useNavigate } from 'react-router-dom'
 import { EMPTY_SOCIAL_SETTINGS, SocialSettings } from '../lib/social'
 
-type Tab='overview'|'content'|'social'|'payments'|'contacts'|'visits'|'coupons'|'users'|'tests'|'reports'|'security'
+type Tab='overview'|'content'|'statistics'|'news'|'social'|'payments'|'contacts'|'visits'|'coupons'|'users'|'tests'|'reports'|'security'
 
 export default function AdminDashboardPage() {
   const [tab,setTab]=useState<Tab>('overview')
@@ -17,7 +17,7 @@ export default function AdminDashboardPage() {
   const load=async(t:Tab=tab)=>{
     setError('')
     try {
-      const action = t==='overview'?'dashboard':t==='content'||t==='social'?'content-list':t==='payments'?'payments-list':t==='contacts'?'contacts-list':t==='visits'||t==='reports'?'analytics-summary':t==='coupons'?'coupons-list':t==='users'?'users-list':t==='tests'?'tests-list':'me'
+      const action = t==='overview'?'dashboard':['content','social','statistics','news'].includes(t)?'content-list':t==='payments'?'payments-list':t==='contacts'?'contacts-list':t==='visits'||t==='reports'?'analytics-summary':t==='coupons'?'coupons-list':t==='users'?'users-list':t==='tests'?'tests-list':'me'
       setData(await adminApi(action))
     } catch(e:any){setError(e.message)}
   }
@@ -47,7 +47,7 @@ export default function AdminDashboardPage() {
       <aside className="admin-sidebar">
         <h2>MentesModernas</h2><span>Panel administrativo</span>
         {[
-          ['overview','Resumen'],['content','Contenido'],['social','Redes sociales'],['payments','Pagos'],['contacts','Mensajes'],
+          ['overview','Resumen'],['content','Contenido'],['statistics','Indicadores'],['news','Noticias'],['social','Redes sociales'],['payments','Pagos'],['contacts','Mensajes'],
           ['visits','Visitas'],['coupons','Cupones'],['users','Usuarios y accesos'],['tests','Tests y preguntas'],['reports','Reportes'],['security','Seguridad']
         ].map(([k,l])=><button key={k} className={tab===k?'active':''} onClick={()=>setTab(k as Tab)}>{l}</button>)}
         <button onClick={()=>{clearAdminSession();navigate('/admin/login')}}>Cerrar sesión</button>
@@ -82,6 +82,12 @@ export default function AdminDashboardPage() {
         </>}
 
         {tab==='social' && data && <SocialPanel initial={data.items?.find((i:any)=>i.key==='social_links')?.value}/>} 
+        {tab==='statistics' && data && (
+          <StatisticsPanel initial={data.items?.find((i:any)=>i.key==='site_stats')?.value}/>
+        )}
+        {tab==='news' && data && (
+          <NewsPanel initial={data.items?.find((i:any)=>i.key==='news')?.value}/>
+        )}
 
         {tab==='payments' && data && <><Table rows={data.items??[]} columns={['id','created_at','email','product_name','amount','currency','status','receipt_url','coupon_code']}/><ActionBox title="Revisar pago" fields="ID del pago,Estado (PAID/FAILED/CANCELLED)" onRun={async v=>{await adminApi('payment-review',{id:v[0],status:v[1].toUpperCase()});load('payments')}}/></>}
         {tab==='contacts' && data && <Table rows={data.items??[]} columns={['created_at','name','email','phone','message','status']}/>}
@@ -100,6 +106,19 @@ export default function AdminDashboardPage() {
       </section>
     </main>
   )
+}
+
+function StatisticsPanel({initial}:{initial?:any}){
+  const [values,setValues]=useState(initial??{completed_tests:13433,active_users:14533,effectiveness:83});const [msg,setMsg]=useState('')
+  const field=(key:string,label:string,suffix='')=><label>{label}<div className="admin-inline-input"><input type="number" min="0" max={key==='effectiveness'?100:undefined} value={values[key]??0} onChange={e=>setValues({...values,[key]:Number(e.target.value)})}/>{suffix&&<span>{suffix}</span>}</div></label>
+  return <div className="admin-card"><h2>Indicadores públicos</h2><p className="admin-hint">Estos valores aparecen en la portada y pueden actualizarse cuando lo necesites.</p>{field('completed_tests','Tests completados')}{field('active_users','Usuarios activos')}{field('effectiveness','Efectividad','%')}<button className="btn primary" onClick={async()=>{try{await adminApi('content-update',{key:'site_stats',value:values});setMsg('Indicadores publicados.')}catch(e:any){setMsg(e.message)}}}>Guardar indicadores</button>{msg&&<div className="alert">{msg}</div>}</div>
+}
+
+function NewsPanel({initial}:{initial?:any}){
+  const [articles,setArticles]=useState<any[]>(initial?.articles??[]);const [msg,setMsg]=useState('')
+  const update=(i:number,key:string,value:string)=>setArticles(a=>a.map((x,n)=>n===i?{...x,[key]:value}:x))
+  const add=()=>setArticles(a=>[...a,{id:crypto.randomUUID(),category:'NUEVO',title:'Nuevo artículo',excerpt:'Escribe aquí un resumen informativo.',read_time:'4 min de lectura'}])
+  return <div className="admin-card"><div className="admin-section-head"><div><h2>Noticias y contenidos</h2><p className="admin-hint">Administra las tarjetas educativas que aparecen en la portada y en Noticias.</p></div><button className="btn secondary" onClick={add}>+ Agregar noticia</button></div><div className="news-editor-list">{articles.map((x,i)=><fieldset key={x.id}><legend>Noticia {i+1}</legend><label>Categoría<input value={x.category??''} onChange={e=>update(i,'category',e.target.value)}/></label><label>Título<input value={x.title??''} onChange={e=>update(i,'title',e.target.value)}/></label><label>Resumen<textarea rows={4} value={x.excerpt??''} onChange={e=>update(i,'excerpt',e.target.value)}/></label><label>Tiempo de lectura<input value={x.read_time??''} onChange={e=>update(i,'read_time',e.target.value)}/></label><button className="btn ghost" onClick={()=>setArticles(a=>a.filter((_,n)=>n!==i))}>Quitar de la publicación</button></fieldset>)}</div><button className="btn primary" onClick={async()=>{try{await adminApi('content-update',{key:'news',value:{articles}});setMsg('Noticias publicadas.')}catch(e:any){setMsg(e.message)}}}>Guardar y publicar noticias</button>{msg&&<div className="alert">{msg}</div>}</div>
 }
 
 function SocialPanel({initial}:{initial?:SocialSettings}){

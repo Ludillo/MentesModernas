@@ -2,20 +2,19 @@ import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import LogoHero from '../components/LogoHero'
 import { loadContent } from '../services/contentService'
-import { loadPublicTestStats } from '../services/feedbackService'
 
 export default function HomePage() {
   const [content, setContent] = useState<any>({})
-  const [stats,setStats]=useState<any>({completed_tests:0,survey_responses:0,helpful_percentage:0})
 
   useEffect(() => { loadContent().then(setContent).catch(() => {}) }, [])
-  useEffect(() => { loadPublicTestStats().then(setStats).catch(()=>{}) }, [])
 
   const hero = content.home_hero ?? {
     title: 'Descubre tu mente. Enciende tu futuro.',
     subtitle: 'Una experiencia vocacional más juvenil, visual y moderna para explorar intereses, fortalezas y decisiones con claridad.',
     cta: 'Empezar ahora'
   }
+  const stats=content.site_stats??{completed_tests:13433,active_users:14533,effectiveness:83}
+  const news=content.news?.articles??[]
 
   return (
     <main>
@@ -28,13 +27,14 @@ export default function HomePage() {
             <Link className="btn primary large" to="/tests">{hero.cta}</Link>
             <Link className="btn ghost large" to="/contacto">Solicitar orientación</Link>
           </div>
-          <div className="hero-metrics">
-            <span><b>{Number(stats.completed_tests).toLocaleString()} tests</b><small>Completados en la plataforma</small></span>
-            <span><b>{Number(stats.survey_responses).toLocaleString()} opiniones</b><small>Encuestas de efectividad</small></span>
-            <span><b>{stats.survey_responses?`${stats.helpful_percentage}%`:'—'}</b><small>Indicó que el test le ayudó</small></span>
-          </div>
         </div>
         <LogoHero src={content.brand?.logo_url} />
+      </section>
+
+      <section className="impact-strip" aria-label="Indicadores de MentesModernas">
+        <div><span className="impact-icon">▥</span><strong>+{Number(stats.completed_tests).toLocaleString('es-BO')}</strong><small>Tests completados</small></div>
+        <div><span className="impact-icon">♧</span><strong>+{Number(stats.active_users).toLocaleString('es-BO')}</strong><small>Usuarios activos</small></div>
+        <div><span className="impact-icon">◇</span><strong>{stats.effectiveness}%</strong><small>Efectividad reportada</small></div>
       </section>
 
       <section className="section section-intense">
@@ -62,6 +62,12 @@ export default function HomePage() {
             <Link to="/test/PERSONAL_STRENGTHS_FREE">Comenzar gratis →</Link>
           </article>
         </div>
+      </section>
+
+      <section className="section news-section">
+        <div className="section-title"><span className="eyebrow">MENTES AL DÍA</span><h2>Noticias para comprender una mente diversa</h2><p>Información cercana y responsable sobre neurodiversidad, aprendizaje y bienestar.</p></div>
+        <div className="news-grid">{news.slice(0,3).map((item:any)=><article className="news-card" key={item.id}><span>{item.category}</span><h3>{item.title}</h3><p>{item.excerpt}</p><small>{item.read_time}</small></article>)}</div>
+        <div className="news-more"><Link className="btn secondary" to="/noticias">Ver todas las noticias</Link></div>
       </section>
     </main>
   )

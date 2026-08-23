@@ -79,6 +79,7 @@ export default function Layout() {
           className={menuOpen ? 'main-nav open' : 'main-nav'}
         >
           <Link to="/tests">Tests</Link>
+          <Link to="/noticias">Noticias</Link>
           <Link to="/contacto">Contáctate con nosotros</Link>
           <Link to="/cuenta">Mi cuenta</Link>
         </nav>
