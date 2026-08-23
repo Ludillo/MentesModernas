@@ -75,6 +75,7 @@ export default function Layout() {
         <span>
           Explora tus intereses, fortalezas y decisiones con una experiencia inmersiva.
         </span>
+        <span className="footer-legal"><Link to="/privacidad">Privacidad</Link><Link to="/terminos">Términos</Link></span>
         <span className="footer-credit">Hecho por <strong>ARPALSOFT</strong></span>
       </footer>
     </div>
