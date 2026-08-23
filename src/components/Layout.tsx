@@ -10,6 +10,12 @@ export default function Layout() {
   const [logo, setLogo] = useState(fallbackLogo)
   const [menuOpen, setMenuOpen] = useState(false)
   const [social, setSocial] = useState<SocialSettings>({})
+  const [theme, setTheme] = useState<'b'|'warm'>(() => localStorage.getItem('mm_skin') === 'warm' ? 'warm' : 'b')
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    localStorage.setItem('mm_skin', theme)
+  }, [theme])
 
   useEffect(() => {
     trackPage(location.pathname)
@@ -48,6 +54,14 @@ export default function Layout() {
           />
         </Link>
 
+        <div className="header-actions">
+        <label className="skin-selector">
+          <span>Diseño</span>
+          <select value={theme} onChange={e=>setTheme(e.target.value as 'b'|'warm')} aria-label="Seleccionar diseño visual">
+            <option value="b">Opción B</option>
+            <option value="warm">Warm</option>
+          </select>
+        </label>
         <button
           type="button"
           className={`mobile-menu-button ${menuOpen ? 'active' : ''}`}
@@ -60,7 +74,6 @@ export default function Layout() {
           <span />
           <span />
         </button>
-
         <nav
           id="main-navigation"
           className={menuOpen ? 'main-nav open' : 'main-nav'}
@@ -69,6 +82,7 @@ export default function Layout() {
           <Link to="/contacto">Contáctate con nosotros</Link>
           <Link to="/cuenta">Mi cuenta</Link>
         </nav>
+        </div>
       </header>
 
       <Outlet />
