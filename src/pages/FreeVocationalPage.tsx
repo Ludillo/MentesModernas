@@ -4,6 +4,8 @@ import { FREE_TEST_CODE } from '../lib/catalog'
 import { calculateResults, getQuestions } from '../services/testService'
 import type { AreaResult, TestQuestion } from '../types/models'
 import { Link } from 'react-router-dom'
+import TestFeedback from '../components/TestFeedback'
+import { recordTestCompletion } from '../services/feedbackService'
 
 export default function FreeVocationalPage() {
   const [questions, setQuestions] = useState<TestQuestion[]>([])
@@ -38,9 +40,10 @@ export default function FreeVocationalPage() {
           </div>
           <Link className="btn primary large" to="/premium/vocacional">Descubrir mi perfil completo →</Link>
         </div>
+        <TestFeedback testCode={FREE_TEST_CODE}/>
       </main>
     )
   }
 
-  return <TestRunner title="Test Vocacional Gratuito" questions={questions} onFinish={a => setResults(calculateResults(questions, a))} />
+  return <TestRunner title="Test Vocacional Gratuito" questions={questions} onFinish={a => {recordTestCompletion(FREE_TEST_CODE).catch(()=>{});setResults(calculateResults(questions, a))}} />
 }

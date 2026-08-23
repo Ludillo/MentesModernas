@@ -2,11 +2,14 @@ import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import LogoHero from '../components/LogoHero'
 import { loadContent } from '../services/contentService'
+import { loadPublicTestStats } from '../services/feedbackService'
 
 export default function HomePage() {
   const [content, setContent] = useState<any>({})
+  const [stats,setStats]=useState<any>({completed_tests:0,survey_responses:0,helpful_percentage:0})
 
   useEffect(() => { loadContent().then(setContent).catch(() => {}) }, [])
+  useEffect(() => { loadPublicTestStats().then(setStats).catch(()=>{}) }, [])
 
   const hero = content.home_hero ?? {
     title: 'Descubre tu mente. Enciende tu futuro.',
@@ -26,9 +29,9 @@ export default function HomePage() {
             <Link className="btn ghost large" to="/contacto">Solicitar orientación</Link>
           </div>
           <div className="hero-metrics">
-            <span><b>3 evaluaciones</b><small>Vocación, aprendizaje y fortalezas</small></span>
-            <span><b>Gratis + Avanzado</b><small>Profundiza cuando estés listo</small></span>
-            <span><b>Resultados claros</b><small>Información útil para decidir</small></span>
+            <span><b>{Number(stats.completed_tests).toLocaleString()} tests</b><small>Completados en la plataforma</small></span>
+            <span><b>{Number(stats.survey_responses).toLocaleString()} opiniones</b><small>Encuestas de efectividad</small></span>
+            <span><b>{stats.survey_responses?`${stats.helpful_percentage}%`:'—'}</b><small>Indicó que el test le ayudó</small></span>
           </div>
         </div>
         <LogoHero src={content.brand?.logo_url} />

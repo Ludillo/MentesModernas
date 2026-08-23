@@ -35,7 +35,8 @@ export default function AdminDashboardPage() {
     const code=prompt('Código del cupón')
     if(!code)return
     const discount=Number(prompt('Porcentaje de descuento (0-100)','100')||'0')
-    await adminApi('coupon-create',{code,discountPercent:discount,maxUses:100})
+    const maxUses=Number(prompt('Cantidad máxima de usos','1')||'1')
+    await adminApi('coupon-create',{code,discountPercent:discount,maxUses})
     await load('coupons')
   }
 

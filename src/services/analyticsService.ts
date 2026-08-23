@@ -1,12 +1,4 @@
-function getVisitorId() {
-  const key = 'mm_visitor_id'
-  let id = localStorage.getItem(key)
-  if (!id) {
-    id = crypto.randomUUID()
-    localStorage.setItem(key, id)
-  }
-  return id
-}
+import { getVisitorId } from './feedbackService'
 
 export async function trackPage(path: string) {
   try {

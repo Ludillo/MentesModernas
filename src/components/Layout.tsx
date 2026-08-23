@@ -58,8 +58,8 @@ export default function Layout() {
         <label className="skin-selector">
           <span>Diseño</span>
           <select value={theme} onChange={e=>setTheme(e.target.value as 'b'|'warm')} aria-label="Seleccionar diseño visual">
-            <option value="b">Opción B</option>
-            <option value="warm">Warm</option>
+            <option value="b">Oscuro</option>
+            <option value="warm">Claro Warm</option>
           </select>
         </label>
         <button

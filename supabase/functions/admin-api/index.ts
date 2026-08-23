@@ -147,7 +147,7 @@ Deno.serve(async (req) => {
       const { data: product }=await db.from('test_products').select('id').eq('code','VOCATIONAL_PREMIUM').single()
       const {error}=await db.from('coupons').insert({
         code,discount_type:discount>=100?'FREE':'PERCENTAGE',discount_value:discount,
-        product_id:product?.id,max_uses:Number(body.maxUses??100),is_active:true
+        product_id:product?.id,max_uses:Number(body.maxUses??1),is_active:true
       })
       if(error)throw error
       await db.from('admin_audit_log').insert({admin_id:admin.id,action:'COUPON_CREATE',entity:'coupons',entity_id:code})

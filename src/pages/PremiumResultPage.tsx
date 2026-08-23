@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import TestFeedback from '../components/TestFeedback'
 
 export default function PremiumResultPage() {
   const { id } = useParams()
@@ -9,7 +10,7 @@ export default function PremiumResultPage() {
 
   useEffect(() => {
     supabase.from('evaluations')
-      .select('id,completed_at,result_json,test_types(name)')
+      .select('id,completed_at,result_json,test_types(name),test_versions(code)')
       .eq('id', id)
       .single()
       .then(({data,error}) => error ? setError(error.message) : setEvaluation(data))
@@ -51,6 +52,7 @@ export default function PremiumResultPage() {
         </div>
         <a className="btn whatsapp large" href="https://wa.me/59170000000?text=Hola%2C%20realic%C3%A9%20mi%20test%20en%20MentesModernas%20y%20quiero%20orientaci%C3%B3n." target="_blank">💬 Hablar por WhatsApp</a>
       </section>
+      <TestFeedback testCode={evaluation.test_versions?.code??'VOCATIONAL_PREMIUM'} evaluationId={evaluation.id}/>
     </main>
   )
 }
