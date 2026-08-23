@@ -3,11 +3,13 @@ import { useEffect, useState } from 'react'
 import fallbackLogo from '../assets/mentesmodernas-logo.png'
 import { trackPage } from '../services/analyticsService'
 import { loadContent } from '../services/contentService'
+import { activeSocialLinks, SocialSettings, whatsappUrl } from '../lib/social'
 
 export default function Layout() {
   const location = useLocation()
   const [logo, setLogo] = useState(fallbackLogo)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [social, setSocial] = useState<SocialSettings>({})
 
   useEffect(() => {
     trackPage(location.pathname)
@@ -20,6 +22,7 @@ export default function Layout() {
         if (c.brand?.logo_url) {
           setLogo(c.brand.logo_url)
         }
+        setSocial(c.social_links ?? {})
       })
       .catch(() => {})
   }, [])
@@ -70,11 +73,10 @@ export default function Layout() {
 
       <Outlet />
 
+      {whatsappUrl(social) && <a className="floating-whatsapp" href={whatsappUrl(social)} target="_blank" rel="noreferrer" aria-label="Conversar por WhatsApp"><span>WhatsApp</span><strong>Conversemos</strong></a>}
       <footer className="footer">
-        <strong>MentesModernas</strong>
-        <span>
-          Explora tus intereses, fortalezas y decisiones con una experiencia inmersiva.
-        </span>
+        <div className="footer-brand"><strong>MentesModernas</strong><span>Explora tus intereses, fortalezas y decisiones.</span></div>
+        <div className="social-links">{activeSocialLinks(social).map(x=><a key={x.key} href={x.url} target="_blank" rel="noreferrer">{x.label}</a>)}</div>
         <span className="footer-legal"><Link to="/privacidad">Privacidad</Link><Link to="/terminos">Términos</Link></span>
         <span className="footer-credit">Hecho por <strong>ARPALSOFT</strong></span>
       </footer>

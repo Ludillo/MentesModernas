@@ -1,8 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { loadContent } from '../services/contentService'
+import { SocialSettings, whatsappUrl } from '../lib/social'
 
 export default function ContactPage() {
   const [form, setForm] = useState({name:'',email:'',phone:'',message:''})
   const [status, setStatus] = useState('')
+  const [social, setSocial] = useState<SocialSettings>({})
+
+  useEffect(()=>{ loadContent().then(c=>setSocial(c.social_links??{})).catch(()=>{}) },[])
 
   const submit = async (e:React.FormEvent) => {
     e.preventDefault(); setStatus('Enviando...')
@@ -22,7 +27,7 @@ export default function ContactPage() {
           <span className="eyebrow">CONTÁCTATE CON NOSOTROS</span>
           <h1>¿Tienes una pregunta o necesitas orientación?</h1>
           <p>Escríbenos y revisaremos tu mensaje desde el panel de MentesModernas.</p>
-          <div className="contact-highlight">💬 También puedes habilitar aquí el WhatsApp oficial cuando tengas el número definitivo.</div>
+          {whatsappUrl(social) && <a className="contact-highlight contact-whatsapp" href={whatsappUrl(social)} target="_blank" rel="noreferrer">💬 Iniciar conversación por WhatsApp</a>}
         </section>
         <form className="contact-form" onSubmit={submit}>
           <label>Nombre<input required value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label>
