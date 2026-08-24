@@ -1,6 +1,7 @@
 import { corsHeaders, json } from '../_shared/cors.ts'
 import { adminDb } from '../_shared/supabase.ts'
 import { requireAdmin } from '../_shared/adminAuth.ts'
+import { escapeHtml, sendEmail } from '../_shared/email.ts'
 
 async function count(db:any, table:string, filter?: (q:any)=>any) {
   let q = db.from(table).select('*', { count:'exact', head:true })
@@ -69,13 +70,21 @@ Deno.serve(async (req) => {
     if (action === 'payment-review') {
       const id=String(body.id??''), status=String(body.status??'')
       if(!['PAID','FAILED','CANCELLED'].includes(status))return json(req,{error:'Estado inválido'},400)
-      const {data:payment,error:pe}=await db.from('payments').update({status,paid_at:status==='PAID'?new Date().toISOString():null,reviewed_at:new Date().toISOString(),reviewed_by:admin.id}).eq('id',id).select('id,user_id,product_id').single()
+      const {data:payment,error:pe}=await db.from('payments').update({status,paid_at:status==='PAID'?new Date().toISOString():null,reviewed_at:new Date().toISOString(),reviewed_by:admin.id}).eq('id',id).select('id,user_id,product_id,profiles(email),test_products(name)').single()
       if(pe)throw pe
       if(status==='PAID'){
         const {data:existing}=await db.from('test_entitlements').select('id').eq('payment_id',id).maybeSingle()
         if(!existing){const {error}=await db.from('test_entitlements').insert({user_id:payment.user_id,product_id:payment.product_id,payment_id:id,status:'AVAILABLE'});if(error)throw error}
       }
       await db.from('admin_audit_log').insert({admin_id:admin.id,action:'PAYMENT_'+status,entity:'payments',entity_id:id})
+      const userEmail=(payment as any).profiles?.email
+      if(userEmail) await sendEmail({
+        to:[userEmail],
+        subject:status==='PAID'?'Tu pago fue aprobado — MentesModernas':'Actualización de tu comprobante — MentesModernas',
+        html:status==='PAID'
+          ?`<h2>Tu pago fue aprobado</h2><p>Ya puedes ingresar a <b>${escapeHtml((payment as any).test_products?.name)}</b> desde tu cuenta en MentesModernas.</p>`
+          :`<h2>No pudimos aprobar tu comprobante</h2><p>El comprobante asociado a <b>${escapeHtml((payment as any).test_products?.name)}</b> no pudo validarse. Revisa los datos y vuelve a enviarlo o comunícate con soporte.</p>`
+      })
       return json(req,{ok:true})
     }
 

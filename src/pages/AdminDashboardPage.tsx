@@ -89,7 +89,7 @@ export default function AdminDashboardPage() {
           <NewsPanel initial={data.items?.find((i:any)=>i.key==='news')?.value}/>
         )}
 
-        {tab==='payments' && data && <><Table rows={data.items??[]} columns={['id','created_at','email','product_name','amount','currency','status','receipt_url','coupon_code']}/><ActionBox title="Revisar pago" fields="ID del pago,Estado (PAID/FAILED/CANCELLED)" onRun={async v=>{await adminApi('payment-review',{id:v[0],status:v[1].toUpperCase()});load('payments')}}/></>}
+        {tab==='payments' && data && <PaymentsPanel items={data.items??[]} onRefresh={()=>load('payments')}/>}
         {tab==='contacts' && data && <Table rows={data.items??[]} columns={['created_at','name','email','phone','message','status']}/>}
         {tab==='visits' && data && <>
           <div className="stat-grid"><Stat label="Hoy" value={data.today}/><Stat label="7 días" value={data.last7d}/><Stat label="30 días" value={data.last30d}/><Stat label="Visitantes únicos 30d" value={data.unique30d}/></div>
@@ -138,6 +138,13 @@ function SocialPanel({initial}:{initial?:SocialSettings}){
 }
 
 function Stat({label,value}:{label:string,value:any}){return <div className="stat-card"><span>{label}</span><strong>{value ?? 0}</strong></div>}
+function PaymentsPanel({items,onRefresh}:{items:any[],onRefresh:()=>Promise<void>}){
+  const [busy,setBusy]=useState('');const [msg,setMsg]=useState('')
+  const review=async(id:string,status:'PAID'|'FAILED')=>{setBusy(id);setMsg('');try{await adminApi('payment-review',{id,status});setMsg(status==='PAID'?'Pago aprobado y acceso habilitado.':'Comprobante rechazado.');await onRefresh()}catch(e:any){setMsg(e.message)}finally{setBusy('')}}
+  const pending=items.filter(x=>x.status==='PENDING'), reviewed=items.filter(x=>x.status!=='PENDING')
+  const list=(rows:any[])=><div className="payment-review-list">{rows.map(x=><article className="admin-card payment-review-card" key={x.id}><div><span className={`payment-status status-${String(x.status).toLowerCase()}`}>{x.status==='PENDING'?'Pendiente de revisión':x.status==='PAID'?'Aprobado':'Rechazado'}</span><h3>{x.product_name??'Test Premium'}</h3><p><b>{x.payer_name||'Nombre no indicado'}</b> · {x.email}</p><p>Referencia: {x.payer_reference||'No indicada'} · {x.amount} {x.currency}</p><small>Recibido: {new Date(x.created_at).toLocaleString('es-BO')}</small></div><div className="payment-review-actions">{x.receipt_url?<a className="btn secondary" href={x.receipt_url} target="_blank" rel="noreferrer">Ver comprobante</a>:<span>Sin archivo</span>}{x.status==='PENDING'&&<><button className="btn primary" disabled={busy===x.id} onClick={()=>review(x.id,'PAID')}>Aprobar pago</button><button className="btn ghost" disabled={busy===x.id} onClick={()=>review(x.id,'FAILED')}>Rechazar</button></>}</div></article>)}</div>
+  return <><div className="admin-section-head"><div><h2>Comprobantes pendientes</h2><p className="admin-hint">Abre el comprobante, verifica el monto y la referencia, y aprueba el acceso con un clic.</p></div><span className="pending-badge">{pending.length} pendientes</span></div>{msg&&<div className="alert">{msg}</div>}{pending.length?list(pending):<div className="admin-card"><p>No hay pagos pendientes de revisión.</p></div>}<h2 className="admin-subtitle">Historial de pagos</h2>{reviewed.length?list(reviewed):<p className="admin-hint">Todavía no hay pagos revisados.</p>}</>
+}
 function Table({rows,columns}:{rows:any[],columns:string[]}){return <div className="table-wrap"><table><thead><tr>{columns.map(c=><th key={c}>{c}</th>)}</tr></thead><tbody>{rows.map((r,i)=><tr key={i}>{columns.map(c=><td key={c}>{String(r[c]??'')}</td>)}</tr>)}</tbody></table></div>}
 function SecurityPanel(){
   const [currentPassword,setCurrent]=useState('');const [newPassword,setNew]=useState('');const [newEmail,setNewEmail]=useState('');const [msg,setMsg]=useState('')

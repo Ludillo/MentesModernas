@@ -4,13 +4,13 @@ export interface TestQuestion {
   id: string
   test_version_id: string
   number: number
-  dimension_code: AreaCode
+  dimension_code: string
   prompt: string
   is_active: boolean
 }
 
 export interface AreaResult {
-  code: AreaCode
+  code: string
   name: string
   score: number
   maxScore: number

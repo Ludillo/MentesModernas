@@ -1,13 +1,23 @@
 import { corsHeaders, json } from '../_shared/cors.ts'
 import { requireUser } from '../_shared/supabase.ts'
 
-const AREA_META: Record<string,{name:string,description:string,careers:string[]}> = {
-  R:{name:'Realista / Técnica',description:'Interés por construir, implementar, operar tecnología y resolver problemas concretos.',careers:['Ingenierías','Arquitectura','Mecánica','Electrónica','Logística','Agronomía']},
-  I:{name:'Investigativa / Científica',description:'Interés por analizar, investigar, diagnosticar y comprender fenómenos mediante evidencia.',careers:['Medicina','Bioquímica','Ciencia de datos','Informática','Economía','Investigación']},
-  A:{name:'Artística / Creativa',description:'Interés por crear, comunicar, innovar y expresar ideas con libertad y sensibilidad estética.',careers:['Diseño','Comunicación','Publicidad','Audiovisual','UX/UI','Arquitectura creativa']},
-  S:{name:'Social / Servicio',description:'Interés por enseñar, cuidar, orientar, escuchar y contribuir al desarrollo de otras personas.',careers:['Psicología','Educación','Enfermería','Trabajo social','Fonoaudiología','Recursos humanos']},
-  E:{name:'Emprendedora / Liderazgo',description:'Interés por liderar, negociar, emprender, influir y alcanzar metas con otras personas.',careers:['Administración','Marketing','Derecho','Ventas','Finanzas','Emprendimiento']},
-  C:{name:'Convencional / Organización',description:'Interés por organizar información, controlar procesos, trabajar con datos y mantener precisión.',careers:['Contabilidad','Auditoría','Banca','Administración','Seguros','Control de procesos']}
+const AREA_META: Record<string,{name:string,description:string,careers:string[],recommendations:string[]}> = {
+  R:{name:'Realista / Técnica',description:'Interés por construir, implementar, operar tecnología y resolver problemas concretos.',careers:['Ingenierías','Arquitectura','Mecánica','Electrónica','Logística','Agronomía'],recommendations:['Explora proyectos técnicos y experiencias prácticas.']},
+  I:{name:'Investigativa / Científica',description:'Interés por analizar, investigar, diagnosticar y comprender fenómenos mediante evidencia.',careers:['Medicina','Bioquímica','Ciencia de datos','Informática','Economía','Investigación'],recommendations:['Explora proyectos de investigación y análisis.']},
+  A:{name:'Artística / Creativa',description:'Interés por crear, comunicar, innovar y expresar ideas con libertad y sensibilidad estética.',careers:['Diseño','Comunicación','Publicidad','Audiovisual','UX/UI','Arquitectura creativa'],recommendations:['Construye un portafolio con proyectos creativos.']},
+  S:{name:'Social / Servicio',description:'Interés por enseñar, cuidar, orientar, escuchar y contribuir al desarrollo de otras personas.',careers:['Psicología','Educación','Enfermería','Trabajo social','Fonoaudiología','Recursos humanos'],recommendations:['Busca experiencias de enseñanza, orientación o servicio.']},
+  E:{name:'Emprendedora / Liderazgo',description:'Interés por liderar, negociar, emprender, influir y alcanzar metas con otras personas.',careers:['Administración','Marketing','Derecho','Ventas','Finanzas','Emprendimiento'],recommendations:['Participa en proyectos donde puedas coordinar y decidir.']},
+  C:{name:'Convencional / Organización',description:'Interés por organizar información, controlar procesos, trabajar con datos y mantener precisión.',careers:['Contabilidad','Auditoría','Banca','Administración','Seguros','Control de procesos'],recommendations:['Practica con planificación, presupuestos y control de procesos.']},
+  VISUAL:{name:'Preferencia de aprendizaje visual',description:'Comprendes y recuerdas mejor mediante imágenes, esquemas, colores, mapas y demostraciones.',careers:[],recommendations:['Convierte tus apuntes en mapas conceptuales.','Usa diagramas, líneas de tiempo y códigos de color.']},
+  AUDITORY:{name:'Preferencia de aprendizaje auditivo',description:'Procesas mejor las ideas al escucharlas, explicarlas y conversar sobre ellas.',careers:[],recommendations:['Graba resúmenes breves y escúchalos.','Participa en debates o grupos de estudio.']},
+  READING:{name:'Preferencia por lectura y escritura',description:'Aprendes con mayor claridad al leer, tomar apuntes y producir resúmenes escritos.',careers:[],recommendations:['Elabora fichas, glosarios y resúmenes.','Reescribe los conceptos con tus propias palabras.']},
+  KINESTHETIC:{name:'Preferencia de aprendizaje práctico',description:'Consolidas el aprendizaje cuando experimentas, practicas y aplicas la teoría en situaciones reales.',careers:[],recommendations:['Transforma la teoría en ejercicios y proyectos.','Estudia en bloques breves con práctica activa.']},
+  CREATIVITY:{name:'Creatividad y pensamiento original',description:'Tienes facilidad para imaginar alternativas y proponer soluciones diferentes.',careers:[],recommendations:['Explora varias soluciones antes de elegir.','Registra tus ideas antes de evaluarlas.']},
+  EMPATHY:{name:'Empatía y comprensión interpersonal',description:'Reconoces emociones y perspectivas ajenas, favoreciendo relaciones respetuosas.',careers:[],recommendations:['Practica la escucha sin interrumpir.','Confirma lo que comprendiste antes de aconsejar.']},
+  DISCIPLINE:{name:'Disciplina y constancia',description:'Puedes sostener compromisos y avanzar incluso cuando disminuye la motivación.',careers:[],recommendations:['Divide objetivos grandes en acciones semanales.','Revisa tu avance con indicadores simples.']},
+  LEADERSHIP:{name:'Liderazgo e iniciativa',description:'Tiendes a asumir responsabilidad y ayudar a que un grupo avance hacia metas compartidas.',careers:[],recommendations:['Define expectativas claras y escucha al equipo.','Delega con seguimiento respetuoso.']},
+  RESILIENCE:{name:'Resiliencia y adaptación',description:'Cuentas con recursos para recuperarte, aprender de dificultades y adaptarte a cambios.',careers:[],recommendations:['Identifica un aprendizaje concreto después de cada reto.','Pide apoyo oportunamente cuando lo necesites.']},
+  COLLABORATION:{name:'Colaboración y trabajo en equipo',description:'Aportas a la confianza, compartes responsabilidades y buscas resultados conjuntos.',careers:[],recommendations:['Aclara acuerdos, funciones y tiempos.','Reconoce los aportes de otras personas.']}
 }
 
 Deno.serve(async(req)=>{
@@ -46,16 +56,17 @@ Deno.serve(async(req)=>{
       totals[q.dimension_code]=(totals[q.dimension_code]||0)+value
     }
 
-    const results=Object.keys(totals).map(code=>{
+    const results=Object.keys(counts).filter(code=>counts[code]>0).map(code=>{
       const maxScore=counts[code]*4
       return {
         code,
-        name:AREA_META[code]?.name ?? code.replaceAll('_',' '),
+        name:AREA_META[code]?.name ?? 'Dimensión evaluada',
         score:totals[code],
         maxScore,
         percent:maxScore?Math.round(totals[code]/maxScore*100):0,
         description:AREA_META[code]?.description ?? 'Una de tus dimensiones más destacadas en esta evaluación.',
-        careers:AREA_META[code]?.careers ?? []
+        careers:AREA_META[code]?.careers ?? [],
+        recommendations:AREA_META[code]?.recommendations ?? ['Relaciona este resultado con experiencias concretas de tu vida.']
       }
     }).sort((a,b)=>b.percent-a.percent)
 
@@ -65,13 +76,15 @@ Deno.serve(async(req)=>{
     const high=unique([...(top?.careers??[]),...(second?.careers??[])]).slice(0,10)
     const medium=unique(results.slice(2,4).flatMap(x=>x.careers??[])).slice(0,10)
 
+    const isVocational=testCode.startsWith('VOCATIONAL_')
     const resultJson={
       results,
       primaryArea:top?.code,
       secondaryArea:second?.code,
-      summary:`Tu perfil combina principalmente ${top?.name} y ${second?.name}. Esta combinación señala intereses que conviene contrastar con tus aptitudes, valores, contexto y experiencias reales.`,
-      highCompatibility:high,
-      mediumCompatibility:medium,
+      summary:`Tu perfil combina principalmente ${top?.name} y ${second?.name}. Estas preferencias pueden ayudarte a elegir estrategias y experiencias más acordes contigo. Conviene contrastarlas con situaciones reales y con tus objetivos personales.`,
+      highCompatibility:isVocational?high:[],
+      mediumCompatibility:isVocational?medium:[],
+      recommendations:[...(top?.recommendations??[]),...(second?.recommendations??[])],
       generatedAt:new Date().toISOString()
     }
 

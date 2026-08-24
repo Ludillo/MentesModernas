@@ -119,6 +119,16 @@ Panel incluido:
 - Cambio de logo.
 - Cambio de contraseña.
 
+### Aprobar comprobantes de pago
+
+1. Ingresa en `/admin/login` con tu cuenta administrativa.
+2. Abre la sección **Pagos** del menú lateral.
+3. En **Comprobantes pendientes**, pulsa **Ver comprobante**.
+4. Después de verificar monto, nombre y referencia, pulsa **Aprobar pago**.
+5. La aprobación habilita automáticamente el test Premium para el usuario y le envía una confirmación por correo.
+
+Cuando un usuario sube un comprobante, todos los administradores activos reciben un aviso por correo. El envío utiliza los mismos secretos `RESEND_API_KEY` y `RESEND_FROM` configurados para el acceso administrativo.
+
 ## 1. Requisitos locales
 
 - Node.js 20+.
@@ -221,6 +231,8 @@ Para envío real del OTP administrativo se configuró Resend:
 supabase secrets set RESEND_API_KEY="re_xxxxxxxxx"
 supabase secrets set RESEND_FROM="MentesModernas <seguridad@tudominio.com>"
 ```
+
+Estos secretos también se usan para avisar al administrador sobre nuevos comprobantes y al usuario cuando su pago es aprobado o rechazado.
 
 Para desarrollo sin correo puedes habilitar temporalmente:
 

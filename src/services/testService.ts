@@ -15,7 +15,7 @@ export function calculateResults(questions: TestQuestion[], answers: Record<stri
   const counts: Record<AreaCode, number> = { R: 0, I: 0, A: 0, S: 0, E: 0, C: 0 }
 
   questions.forEach(q => {
-    const area = q.dimension_code
+    const area = q.dimension_code as AreaCode
     counts[area] += 1
     totals[area] += answers[q.id] ?? 0
   })

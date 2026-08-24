@@ -22,6 +22,7 @@ export default function PremiumResultPage() {
   const r = evaluation.result_json
   const top = r.results?.[0]
   const second = r.results?.[1]
+  const hasCareers = (r.highCompatibility?.length ?? 0) > 0 || (r.mediumCompatibility?.length ?? 0) > 0
   return (
     <main className="page section result-page">
       <div className="premium-result-hero">
@@ -37,13 +38,18 @@ export default function PremiumResultPage() {
           </article>
         ))}
       </div>
-      <section className="career-report">
+      {hasCareers && <section className="career-report">
         <h2>Carreras para explorar</h2>
         <div className="career-columns">
           <div><h3>Alta afinidad</h3>{(r.highCompatibility ?? []).map((x:string)=><span key={x}>{x}</span>)}</div>
           <div><h3>Afinidad complementaria</h3>{(r.mediumCompatibility ?? []).map((x:string)=><span key={x}>{x}</span>)}</div>
         </div>
-      </section>
+      </section>}
+      {!hasCareers && <section className="career-report">
+        <h2>Recomendaciones personalizadas</h2>
+        <p>Aplica estas sugerencias durante algunas semanas y observa cuáles mejoran tu experiencia:</p>
+        <div className="career-columns"><div>{(r.recommendations ?? top?.recommendations ?? []).map((x:string)=><span key={x}>{x}</span>)}</div></div>
+      </section>}
       <section className="pro-help">
         <div>
           <span className="eyebrow">ACOMPAÑAMIENTO PROFESIONAL</span>
