@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react'
 import TestRunner from '../components/TestRunner'
 import { FREE_TEST_CODE } from '../lib/catalog'
-import { calculateResults, getQuestions } from '../services/testService'
+import { calculateResults, getQuestions, submitFreeResult } from '../services/testService'
 import type { AreaResult, TestQuestion } from '../types/models'
 import { Link } from 'react-router-dom'
 import TestFeedback from '../components/TestFeedback'
 import { recordTestCompletion } from '../services/feedbackService'
+import { useNavigate } from 'react-router-dom'
 
 export default function FreeVocationalPage() {
+  const navigate=useNavigate()
   const [questions, setQuestions] = useState<TestQuestion[]>([])
   const [results, setResults] = useState<AreaResult[] | null>(null)
   const [error, setError] = useState('')
@@ -45,5 +47,5 @@ export default function FreeVocationalPage() {
     )
   }
 
-  return <TestRunner title="Test Vocacional Gratuito" questions={questions} onFinish={a => {recordTestCompletion(FREE_TEST_CODE).catch(()=>{});setResults(calculateResults(questions, a))}} />
+  return <TestRunner title="Orientación Vocacional Gratuita" questions={questions} onFinish={async a => {recordTestCompletion(FREE_TEST_CODE).catch(()=>{});const saved=await submitFreeResult({testCode:FREE_TEST_CODE,answers:a});if(saved)navigate(`/resultado/${saved.evaluationId}`);else setResults(calculateResults(questions, a))}} />
 }

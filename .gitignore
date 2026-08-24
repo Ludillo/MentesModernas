@@ -1,5 +1,7 @@
 node_modules
 dist
+.supabase/
+supabase/.temp/
 .env
 .env.local
 .supabase

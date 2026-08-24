@@ -58,3 +58,15 @@ export async function submitPremiumResult(payload: {
   if (!res.ok) throw new Error((await res.json()).error ?? 'No se pudo guardar el resultado')
   return res.json()
 }
+
+export async function submitFreeResult(payload:{testCode:string;answers:Record<string,number>}){
+  const {data:sessionData}=await supabase.auth.getSession()
+  const accessToken=sessionData.session?.access_token
+  if(!accessToken)return null
+  const res=await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/submit-free-result`,{
+    method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${accessToken}`,apikey:import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY},body:JSON.stringify(payload)
+  })
+  const data=await res.json()
+  if(!res.ok)throw new Error(data.error??'No se pudo guardar el resultado gratuito.')
+  return data as {ok:boolean;evaluationId:string}
+}

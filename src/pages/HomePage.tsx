@@ -66,7 +66,7 @@ export default function HomePage() {
 
       <section className="section news-section">
         <div className="section-title"><span className="eyebrow">MENTES AL DÍA</span><h2>Noticias para comprender una mente diversa</h2><p>Información cercana y responsable sobre neurodiversidad, aprendizaje y bienestar.</p></div>
-        <div className="news-grid">{news.slice(0,3).map((item:any)=><article className="news-card" key={item.id}><span>{item.category}</span><h3>{item.title}</h3><p>{item.excerpt}</p><small>{item.read_time}</small></article>)}</div>
+        <div className="news-grid">{news.slice(0,3).map((item:any)=><article className="news-card" key={item.id}><span>{item.category}</span><h3>{item.title}</h3><p>{item.excerpt}</p><small>{item.source?`${item.source} · `:''}{item.read_time}</small>{item.url&&<a className="news-source-link" href={item.url} target="_blank" rel="noreferrer">{item.link_label??'Consultar fuente'} ↗</a>}</article>)}</div>
         <div className="news-more"><Link className="btn secondary" to="/noticias">Ver todas las noticias</Link></div>
       </section>
     </main>

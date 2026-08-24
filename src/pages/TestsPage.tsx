@@ -1,8 +1,9 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
 export default function TestsPage() {
+  const navigate=useNavigate()
   const [items,setItems]=useState<any[]>([])
   useEffect(()=>{supabase.rpc('get_test_catalog').then(({data})=>setItems(data??[]))},[])
   const fallback=[
@@ -18,10 +19,10 @@ export default function TestsPage() {
         <p>Empieza gratis y profundiza solo si el resultado te resulta útil.</p>
       </div>
 
-      <div className="product-grid">{catalog.map(x=><article className="product-card" key={x.type_code}>
+      <div className="product-grid">{catalog.map(x=><article className="product-card clickable-card" role="link" tabIndex={0} aria-label={`Comenzar gratis: ${x.name}`} onClick={()=>navigate(`/test/${x.free_code}`)} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();navigate(`/test/${x.free_code}`)}}} key={x.type_code}>
         <div className="module-icon">{x.icon}</div><h2>{x.name}</h2><p>{x.description}</p>
         <ul><li>{x.free_questions} preguntas gratis</li><li>{x.premium_questions} preguntas avanzadas</li><li>Resultado inmediato</li></ul>
-        <div className="card-actions"><Link className="btn secondary" to={`/test/${x.free_code}`}>Comenzar gratis</Link><Link className="btn primary" to={`/acceso/${x.premium_code}`}>Avanzado · {x.price} {x.currency}</Link></div>
+        <div className="card-actions"><Link onClick={e=>e.stopPropagation()} className="btn secondary" to={`/test/${x.free_code}`}>Comenzar gratis</Link><Link onClick={e=>e.stopPropagation()} className="btn primary" to={`/acceso/${x.premium_code}`}>Avanzado · {x.price} {x.currency}</Link></div>
       </article>)}</div>
     </main>
   )

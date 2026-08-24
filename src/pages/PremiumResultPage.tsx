@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import TestFeedback from '../components/TestFeedback'
+import { Link } from 'react-router-dom'
+import { testMeta } from '../lib/testMeta'
 
 export default function PremiumResultPage() {
   const { id } = useParams()
@@ -10,7 +12,7 @@ export default function PremiumResultPage() {
 
   useEffect(() => {
     supabase.from('evaluations')
-      .select('id,completed_at,result_json,test_types(name),test_versions(code)')
+      .select('id,completed_at,result_json,test_types(name),test_versions(code,access_level)')
       .eq('id', id)
       .single()
       .then(({data,error}) => error ? setError(error.message) : setEvaluation(data))
@@ -23,10 +25,14 @@ export default function PremiumResultPage() {
   const top = r.results?.[0]
   const second = r.results?.[1]
   const hasCareers = (r.highCompatibility?.length ?? 0) > 0 || (r.mediumCompatibility?.length ?? 0) > 0
+  const code=evaluation.test_versions?.code??''
+  const meta=testMeta(code)
+  const isFree=evaluation.test_versions?.access_level==='FREE'
   return (
     <main className="page section result-page">
       <div className="premium-result-hero">
-        <span className="eyebrow">INFORME PREMIUM</span>
+        <span className="eyebrow">{isFree?'RESULTADO GRATUITO':'INFORME AVANZADO'} · {evaluation.test_types?.name}</span>
+        <h2>{meta.title}</h2>
         <h1>Tu combinación principal:<br/><span>{top?.name}</span> + <span>{second?.name}</span></h1>
         <p>{r.summary}</p>
       </div>
@@ -50,6 +56,7 @@ export default function PremiumResultPage() {
         <p>Aplica estas sugerencias durante algunas semanas y observa cuáles mejoran tu experiencia:</p>
         <div className="career-columns"><div>{(r.recommendations ?? top?.recommendations ?? []).map((x:string)=><span key={x}>{x}</span>)}</div></div>
       </section>}
+      {isFree&&meta.premiumCode&&<section className="upgrade-banner"><div><span className="eyebrow">SIGUIENTE PASO</span><h2>¿Quieres mejores resultados y más detalle?</h2><p>Prueba la versión avanzada de {meta.shortTitle}: incluye más preguntas, un análisis más profundo y recomendaciones ampliadas.</p></div><Link className="btn primary large" to={`/acceso/${meta.premiumCode}`}>Ver versión avanzada →</Link></section>}
       <section className="pro-help">
         <div>
           <span className="eyebrow">ACOMPAÑAMIENTO PROFESIONAL</span>

@@ -14,7 +14,7 @@ export default function AccountPage() {
       setSession(data.session)
       if (data.session) {
         const [e, t, c] = await Promise.all([
-          supabase.from('evaluations').select('id,completed_at,result_json,test_types(name)').order('completed_at', {ascending:false}),
+          supabase.from('evaluations').select('id,completed_at,result_json,test_types(name),test_versions(code,access_level)').order('completed_at', {ascending:false}),
           supabase.from('test_entitlements').select('id,status,created_at,test_products(name,code)').eq('status','AVAILABLE'),
           supabase.rpc('get_test_catalog')
         ])
@@ -37,7 +37,7 @@ export default function AccountPage() {
         <h2>Mi historial de resultados</h2>
         <p className="section-lead">Consulta nuevamente los informes de los tests que ya completaste.</p>
         <div className="history-list">
-          {evaluations.length ? evaluations.map((x:any)=><Link key={x.id} to={`/resultado/${x.id}`}><b>{x.test_types?.name}</b><span>{new Date(x.completed_at).toLocaleDateString()}</span></Link>) : <p>Aún no tienes evaluaciones avanzadas finalizadas.</p>}
+          {evaluations.length ? evaluations.map((x:any)=><Link key={x.id} to={`/resultado/${x.id}`}><b>{x.test_types?.name} · {x.test_versions?.access_level==='FREE'?'Gratuito':'Avanzado'}</b><span>{new Date(x.completed_at).toLocaleString('es-BO')}</span></Link>) : <p>Aún no tienes evaluaciones finalizadas. Cada intento gratuito o avanzado aparecerá aquí.</p>}
         </div>
       </section>
       <section className="account-tests-section">
