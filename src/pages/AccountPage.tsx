@@ -8,6 +8,18 @@ export default function AccountPage() {
   const [evaluations, setEvaluations] = useState<any[]>([])
   const [entitlements, setEntitlements] = useState<any[]>([])
   const [catalog, setCatalog] = useState<any[]>([])
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState('')
+
+  async function deleteEvaluation(id: string) {
+    if (!window.confirm('¿Seguro que quieres borrar este resultado? Esta acción no se puede deshacer.')) return
+    setDeletingId(id)
+    setDeleteError('')
+    const {error} = await supabase.from('evaluations').delete().eq('id', id)
+    if (error) setDeleteError('No pudimos borrar el resultado. Inténtalo nuevamente.')
+    else setEvaluations(current => current.filter(item => item.id !== id))
+    setDeletingId(null)
+  }
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({data}) => {
@@ -36,8 +48,12 @@ export default function AccountPage() {
       <section className="account-history-section">
         <h2>Mi historial de resultados</h2>
         <p className="section-lead">Consulta nuevamente los informes de los tests que ya completaste.</p>
+        {deleteError && <p className="form-error" role="alert">{deleteError}</p>}
         <div className="history-list">
-          {evaluations.length ? evaluations.map((x:any)=><Link key={x.id} to={`/resultado/${x.id}`}><b>{x.test_types?.name} · {x.test_versions?.access_level==='FREE'?'Gratuito':'Avanzado'}</b><span>{new Date(x.completed_at).toLocaleString('es-BO')}</span></Link>) : <p>Aún no tienes evaluaciones finalizadas. Cada intento gratuito o avanzado aparecerá aquí.</p>}
+          {evaluations.length ? evaluations.map((x:any)=><div className="history-item" key={x.id}>
+            <Link to={`/resultado/${x.id}`}><b>{x.test_types?.name} · {x.test_versions?.access_level==='FREE'?'Gratuito':'Avanzado'}</b><span>{new Date(x.completed_at).toLocaleString('es-BO')}</span></Link>
+            <button className="history-delete" type="button" disabled={deletingId===x.id} onClick={()=>deleteEvaluation(x.id)}>{deletingId===x.id?'Borrando…':'Borrar'}</button>
+          </div>) : <p>Aún no tienes evaluaciones finalizadas. Cada intento gratuito o avanzado aparecerá aquí.</p>}
         </div>
       </section>
       <section className="account-tests-section">
