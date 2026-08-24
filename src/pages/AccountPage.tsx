@@ -8,6 +8,7 @@ export default function AccountPage() {
   const [evaluations, setEvaluations] = useState<any[]>([])
   const [entitlements, setEntitlements] = useState<any[]>([])
   const [catalog, setCatalog] = useState<any[]>([])
+  const [payments, setPayments] = useState<any[]>([])
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState('')
 
@@ -25,14 +26,16 @@ export default function AccountPage() {
     supabase.auth.getSession().then(async ({data}) => {
       setSession(data.session)
       if (data.session) {
-        const [e, t, c] = await Promise.all([
+        const [e, t, c, p] = await Promise.all([
           supabase.from('evaluations').select('id,completed_at,result_json,test_types(name),test_versions(code,access_level)').order('completed_at', {ascending:false}),
           supabase.from('test_entitlements').select('id,status,created_at,test_products(name,code)').eq('status','AVAILABLE'),
-          supabase.rpc('get_test_catalog')
+          supabase.rpc('get_test_catalog'),
+          supabase.from('payments').select('id,status,created_at,amount,currency,test_products(name,code)').order('created_at',{ascending:false})
         ])
         setEvaluations(e.data ?? [])
         setEntitlements(t.data ?? [])
         setCatalog(c.data ?? [])
+        setPayments(p.data ?? [])
       }
     })
   }, [])
@@ -45,6 +48,16 @@ export default function AccountPage() {
         <div><span className="eyebrow">MI CUENTA</span><h1>{session.user.user_metadata?.full_name ?? session.user.email}</h1></div>
         <button className="btn secondary" onClick={async()=>{await signOut(); location.reload()}}>Cerrar sesión</button>
       </div>
+      {payments.length > 0 && <section className="account-payments-section">
+        <h2>Estado de mis pagos</h2>
+        <p className="section-lead">Aquí puedes comprobar si tu comprobante continúa en revisión o si el acceso ya fue habilitado.</p>
+        <div className="payment-status-list">{payments.map((payment:any)=><article className="payment-status-card" key={payment.id}>
+          <div><span className={`payment-status status-${String(payment.status).toLowerCase()}`}>{payment.status==='PENDING'?'En revisión':payment.status==='PAID'?'Aprobado':payment.status==='FAILED'?'Rechazado':'Cancelado'}</span><h3>{payment.test_products?.name??'Evaluación avanzada'}</h3><small>Enviado el {new Date(payment.created_at).toLocaleString('es-BO')} · {payment.amount} {payment.currency}</small></div>
+          {payment.status==='PENDING'&&<p>Recibimos tu comprobante. Te informaremos en esta cuenta cuando termine la revisión.</p>}
+          {payment.status==='PAID'&&<p>Tu pago fue aprobado. El acceso avanzado ya está disponible más abajo.</p>}
+          {payment.status==='FAILED'&&<p>El comprobante no pudo ser validado. Puedes enviar uno nuevo o contactarnos.</p>}
+        </article>)}</div>
+      </section>}
       <section className="account-history-section">
         <h2>Mi historial de resultados</h2>
         <p className="section-lead">Consulta nuevamente los informes de los tests que ya completaste.</p>

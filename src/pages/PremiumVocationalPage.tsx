@@ -8,6 +8,8 @@ export default function PremiumVocationalPage() {
   const [session, setSession] = useState<any>(null)
   const [checking, setChecking] = useState(false)
   const [message, setMessage] = useState('')
+  const [paymentSubmitted, setPaymentSubmitted] = useState(false)
+  const [paymentError, setPaymentError] = useState('')
   const navigate = useNavigate()
   const { code = 'VOCATIONAL_PREMIUM' } = useParams()
   const [coupon,setCoupon]=useState('')
@@ -124,10 +126,20 @@ export default function PremiumVocationalPage() {
             </div>
           )}
           <div className="separator"><span>o paga por QR</span></div>
-          <label>Nombre del pagador<input value={payerName} onChange={e=>setPayerName(e.target.value)}/></label>
-          <label>Referencia bancaria<input value={reference} onChange={e=>setReference(e.target.value)}/></label>
-          <label>Comprobante (JPG, PNG o PDF)<input type="file" accept="image/png,image/jpeg,application/pdf" onChange={e=>setReceipt(e.target.files?.[0]||null)}/></label>
-          <button className="btn secondary full" disabled={!receipt||checking} onClick={async()=>{if(!receipt)return;setChecking(true);try{await submitPaymentReceipt(code,receipt,payerName,reference);setMessage('Comprobante recibido. Te avisaremos cuando el administrador apruebe el acceso.')}catch(e:any){setMessage(e.message)}finally{setChecking(false)}}}>Enviar comprobante</button>
+          {paymentSubmitted ? <div className="payment-success" role="status">
+            <div className="payment-success-icon">✓</div>
+            <span className="eyebrow">COMPROBANTE RECIBIDO</span>
+            <h2>Gracias. Tu pago está en revisión.</h2>
+            <p>Revisaremos el comprobante y tendrás novedades en <b>Mi cuenta</b>. Cuando sea aprobado, allí aparecerá el botón para iniciar tu test avanzado.</p>
+            <p className="payment-success-note">No necesitas volver a enviarlo.</p>
+            <Link className="btn primary full" to="/cuenta">Ver estado en Mi cuenta</Link>
+          </div> : <>
+            <label>Nombre del pagador<input value={payerName} onChange={e=>setPayerName(e.target.value)}/></label>
+            <label>Referencia bancaria<input value={reference} onChange={e=>setReference(e.target.value)}/></label>
+            <label>Comprobante (JPG, PNG o PDF)<input type="file" accept="image/png,image/jpeg,application/pdf" onChange={e=>setReceipt(e.target.files?.[0]||null)}/></label>
+            <button className="btn secondary full" disabled={!receipt||checking} onClick={async()=>{if(!receipt)return;setChecking(true);setPaymentError('');try{await submitPaymentReceipt(code,receipt,payerName,reference);setPaymentSubmitted(true);setReceipt(null);setPayerName('');setReference('')}catch(e:any){setPaymentError(e.message??'No se pudo enviar el comprobante. Inténtalo nuevamente.')}finally{setChecking(false)}}}>{checking?'Enviando comprobante…':'Enviar comprobante'}</button>
+            {paymentError && <div className="alert error" role="alert">{paymentError}</div>}
+          </>}
 
         </section>
 
