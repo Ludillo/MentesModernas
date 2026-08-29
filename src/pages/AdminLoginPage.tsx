@@ -8,6 +8,7 @@ export default function AdminLoginPage() {
   const [otp,setOtp]=useState('')
   const [step,setStep]=useState<1|2>(1)
   const [msg,setMsg]=useState('')
+  const [googleBusy,setGoogleBusy]=useState(false)
   const navigate=useNavigate()
 
   useEffect(()=>{
@@ -31,8 +32,8 @@ export default function AdminLoginPage() {
       <section className="admin-login-card">
         <span className="eyebrow">ADMINISTRACIÓN SEGURA</span>
         <h1>MentesModernas Admin</h1>
-        <p>Si tu sesión de Google ya está iniciada y el correo figura como administrador, el acceso continuará automáticamente.</p>
-        <button className="btn google full" onClick={async()=>{try{setMsg('');await signInAdminWithGoogle()}catch(e:any){setMsg(e.message)}}}>Continuar con Google</button>
+        <p>Ingresa con una cuenta Google registrada como administradora. Podrás seleccionar la cuenta que deseas utilizar.</p>
+        <button className="btn google full" disabled={googleBusy} onClick={async()=>{try{setMsg('');setGoogleBusy(true);await signInAdminWithGoogle()}catch(e:any){setGoogleBusy(false);setMsg(e.message)}}}>{googleBusy?'Abriendo Google…':'Continuar con Google'}</button>
         <div className="separator"><span>o usa el acceso de respaldo</span></div>
         {step===1 ? <>
           <p>Ingresa tu correo administrativo. La plataforma enviará un token si el usuario está habilitado.</p>

@@ -48,7 +48,13 @@ export async function verifyAdmin(email: string, password: string, otp: string) 
 }
 
 export async function signInAdminWithGoogle(){
- const {error}=await supabase.auth.signInWithOAuth({provider:'google',options:{redirectTo:`${window.location.origin}/admin/login`}})
+ const {error}=await supabase.auth.signInWithOAuth({
+  provider:'google',
+  options:{
+   redirectTo:`${window.location.origin}/admin/login`,
+   queryParams:{prompt:'select_account'}
+  }
+ })
  if(error)throw error
 }
 
