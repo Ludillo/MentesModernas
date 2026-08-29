@@ -41,14 +41,12 @@ if (req.method === 'OPTIONS') {
     }
 
     if (!couponCode) {
-      return json(
-        req,
-        {
-          paid: false,
-          error: 'Actualmente necesitas un cupón válido para acceder al test Premium.'
-        },
-        400
-      )
+      const {data:product,error:productError}=await db.from('test_products').select('id').eq('code',productCode.toUpperCase()).eq('access_level','PREMIUM').eq('is_active',true).maybeSingle()
+      if(productError)throw productError
+      if(!product)return json(req,{paid:false,accessGranted:false,error:'El test avanzado no está disponible.'},404)
+      const {data:entitlement,error:entitlementError}=await db.from('test_entitlements').select('id').eq('user_id',user.id).eq('product_id',product.id).eq('status','AVAILABLE').limit(1).maybeSingle()
+      if(entitlementError)throw entitlementError
+      return json(req,{paid:!!entitlement,accessGranted:!!entitlement,entitlementId:entitlement?.id??null})
     }
 
     const { data, error } = await db.rpc(

@@ -46,6 +46,17 @@ export async function submitPaymentReceipt(productCode:string,file:File,payerNam
  const res=await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/payment-submit`,{method:'POST',headers:{Authorization:`Bearer ${token}`,apikey:import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY},body:form});const body=await res.json();if(!res.ok)throw new Error(body.error);return body
 }
 
+export async function hasPremiumAccess(productCode:string):Promise<boolean>{
+  const {data:sessionData}=await supabase.auth.getSession()
+  const userId=sessionData.session?.user.id
+  if(!userId)return false
+  const {data:product,error:productError}=await supabase.from('test_products').select('id').eq('code',productCode.toUpperCase()).eq('access_level','PREMIUM').eq('is_active',true).maybeSingle()
+  if(productError||!product)return false
+  const {data:entitlement,error:entitlementError}=await supabase.from('test_entitlements').select('id').eq('user_id',userId).eq('product_id',product.id).eq('status','AVAILABLE').limit(1).maybeSingle()
+  if(entitlementError)return false
+  return !!entitlement
+}
+
 export type QrPayment={paymentId:string;amount:number;currency:string;productName:string;transactionId:string;qrId?:string;qrImage:string;dueDate:string;status:string}
 
 async function qrRequest(body:Record<string,unknown>){

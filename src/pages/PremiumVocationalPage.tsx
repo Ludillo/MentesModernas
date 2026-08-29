@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { Link, useNavigate } from 'react-router-dom'
 import { useParams } from 'react-router-dom'
-import { generatePaymentQr, QrPayment, validatePayment, verifyPaymentQr } from '../services/paymentService'
+import { generatePaymentQr, hasPremiumAccess, QrPayment, validatePayment, verifyPaymentQr } from '../services/paymentService'
 
 export default function PremiumVocationalPage() {
   const [session, setSession] = useState<any>(null)
@@ -11,6 +11,8 @@ export default function PremiumVocationalPage() {
   const [message, setMessage] = useState('')
   const [paymentError, setPaymentError] = useState('')
   const [qrPayment,setQrPayment]=useState<QrPayment|null>(null)
+  const [accessAvailable,setAccessAvailable]=useState(false)
+  const [accessChecking,setAccessChecking]=useState(false)
   const navigate = useNavigate()
   const { code = 'VOCATIONAL_PREMIUM' } = useParams()
   const [coupon,setCoupon]=useState('')
@@ -27,6 +29,12 @@ export default function PremiumVocationalPage() {
 
     return () => data.subscription.unsubscribe()
   }, [])
+
+  useEffect(()=>{
+    if(!session)return
+    setAccessChecking(true)
+    hasPremiumAccess(code).then(setAccessAvailable).catch(()=>setAccessAvailable(false)).finally(()=>setAccessChecking(false))
+  },[session?.user?.id,code])
 
   if (!session) {
     return (
@@ -94,6 +102,8 @@ export default function PremiumVocationalPage() {
 
         <section className="qr-card">
 
+          {accessChecking?<div className="premium-access-check"><div className="loading">Comprobando tu acceso…</div></div>:accessAvailable?<div className="premium-access-ready"><span className="premium-access-ready-icon">✓</span><span className="eyebrow">ACCESO CONFIRMADO</span><h2>Tu test avanzado está habilitado</h2><p>Tu pago, cupón o autorización ya fue validado. Puedes continuar cuando estés listo.</p><button className="btn primary large full" onClick={()=>navigate(`/test/${code}`)}>Continuar al test avanzado →</button></div>:<>
+
           <div className={`qr-placeholder${qrPayment?' has-qr':''}`}>
             {qrPayment?.qrImage
               ? <img className="generated-payment-qr" src={qrImageSrc} alt={`QR de pago ${qrPayment.transactionId}`}/>
@@ -106,6 +116,8 @@ export default function PremiumVocationalPage() {
           <label>Cupón de acceso<input value={coupon} onChange={e=>setCoupon(e.target.value.toUpperCase())} placeholder="INGRESA TU CUPÓN" /></label>
           <button type="button" className="btn secondary full" disabled={checking || !coupon.trim()} onClick={continuePremium}>{checking?'Validando cupón…':'Habilitar acceso con cupón'}</button>
           {message && <div className="alert">{message}</div>}
+
+          </>}
 
         </section>
 
