@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import TestFeedback from '../components/TestFeedback'
 import { Link } from 'react-router-dom'
 import { testMeta } from '../lib/testMeta'
+import { Methodology } from './GenericTestPage'
 
 export default function PremiumResultPage() {
   const { id } = useParams()
@@ -11,6 +12,7 @@ export default function PremiumResultPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
+    window.scrollTo({top:0,behavior:'smooth'})
     supabase.from('evaluations')
       .select('id,completed_at,result_json,test_types(name),test_versions(code,access_level)')
       .eq('id', id)
@@ -56,6 +58,7 @@ export default function PremiumResultPage() {
         <p>Aplica estas sugerencias durante algunas semanas y observa cuáles mejoran tu experiencia:</p>
         <div className="career-columns"><div>{(r.recommendations ?? top?.recommendations ?? []).map((x:string)=><span key={x}>{x}</span>)}</div></div>
       </section>}
+      <Methodology meta={meta}/>
       {isFree&&meta.premiumCode&&<section className="upgrade-banner"><div><span className="eyebrow">SIGUIENTE PASO</span><h2>¿Quieres mejores resultados y más detalle?</h2><p>Prueba la versión avanzada de {meta.shortTitle}: incluye más preguntas, un análisis más profundo y recomendaciones ampliadas.</p></div><Link className="btn primary large" to={`/acceso/${meta.premiumCode}`}>Ver versión avanzada →</Link></section>}
       <section className="pro-help">
         <div>

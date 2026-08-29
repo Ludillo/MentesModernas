@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
 
     if (action === 'payments-list') {
       const { data, error } = await db.from('payments')
-        .select('id,created_at,amount,currency,status,receipt_url,payer_name,payer_reference,profiles(email),test_products(name),coupons(code)')
+        .select('id,created_at,amount,currency,status,receipt_url,payer_name,payer_reference,provider_transaction_id,provider_status,provider_checked_at,profiles(email),test_products(name),coupons(code)')
         .order('created_at',{ascending:false}).limit(500)
       if(error)throw error
       const items=await Promise.all((data??[]).map(async(x:any)=>{
@@ -70,6 +70,9 @@ Deno.serve(async (req) => {
     if (action === 'payment-review') {
       const id=String(body.id??''), status=String(body.status??'')
       if(!['PAID','FAILED','CANCELLED'].includes(status))return json(req,{error:'Estado inválido'},400)
+      const {data:current,error:currentError}=await db.from('payments').select('provider_transaction_id').eq('id',id).single()
+      if(currentError)throw currentError
+      if(current.provider_transaction_id&&status==='PAID')return json(req,{error:'Un pago QR solo puede aprobarse mediante confirmación de la API bancaria.'},409)
       const {data:payment,error:pe}=await db.from('payments').update({status,paid_at:status==='PAID'?new Date().toISOString():null,reviewed_at:new Date().toISOString(),reviewed_by:admin.id}).eq('id',id).select('id,user_id,product_id,profiles(email),test_products(name)').single()
       if(pe)throw pe
       if(status==='PAID'){
@@ -108,6 +111,15 @@ Deno.serve(async (req) => {
     if(action==='question-save'){
       const item=body.item as any
       const {error}=await db.from('test_questions').upsert({id:item.id||undefined,test_version_id:item.testVersionId,number:Number(item.number),dimension_code:String(item.dimensionCode),prompt:String(item.prompt),weight:Number(item.weight||1),is_active:item.isActive!==false});if(error)throw error;return json(req,{ok:true})
+    }
+
+    if(action==='product-price-update'){
+      const productCode=String(body.productCode??'').trim().toUpperCase(),price=Number(body.price),currency=String(body.currency??'BOB').trim().toUpperCase()
+      if(!productCode||!Number.isFinite(price)||price<=0)return json(req,{error:'Código y monto mayor a cero son obligatorios'},400)
+      if(!['BOB','USD'].includes(currency))return json(req,{error:'Moneda no válida'},400)
+      const {data,error}=await db.from('test_products').update({price,currency}).eq('code',productCode).eq('access_level','PREMIUM').select('id').single();if(error)throw error
+      await db.from('admin_audit_log').insert({admin_id:admin.id,action:'PRODUCT_PRICE_UPDATE',entity:'test_products',entity_id:data.id,payload:{productCode,price,currency}})
+      return json(req,{ok:true})
     }
 
     if(action==='coupon-toggle'){

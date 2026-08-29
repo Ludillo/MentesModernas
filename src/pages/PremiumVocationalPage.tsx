@@ -2,18 +2,17 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { Link, useNavigate } from 'react-router-dom'
 import { useParams } from 'react-router-dom'
-import { submitPaymentReceipt, validatePayment } from '../services/paymentService'
+import { generatePaymentQr, QrPayment, validatePayment, verifyPaymentQr } from '../services/paymentService'
 
 export default function PremiumVocationalPage() {
   const [session, setSession] = useState<any>(null)
   const [checking, setChecking] = useState(false)
   const [message, setMessage] = useState('')
-  const [paymentSubmitted, setPaymentSubmitted] = useState(false)
   const [paymentError, setPaymentError] = useState('')
+  const [qrPayment,setQrPayment]=useState<QrPayment|null>(null)
   const navigate = useNavigate()
   const { code = 'VOCATIONAL_PREMIUM' } = useParams()
   const [coupon,setCoupon]=useState('')
-  const [receipt,setReceipt]=useState<File|null>(null);const [payerName,setPayerName]=useState('');const [reference,setReference]=useState('')
 
   useEffect(() => {
     supabase.auth
@@ -83,7 +82,7 @@ export default function PremiumVocationalPage() {
           </h1>
 
           <p>
-            Accede con un cupón válido o envía tu comprobante de pago QR para revisión.
+            Accede con un cupón válido de un uso o solicita un QR de cobro por el monto configurado para este test.
           </p>
 
           <p>
@@ -93,18 +92,14 @@ export default function PremiumVocationalPage() {
 
         <section className="qr-card">
 
-          <div className="qr-placeholder">
-            <div className="qr-grid">
-              QR
-            </div>
-          </div>
+          <div className="qr-placeholder">{qrPayment?.qrImage?<img className="generated-payment-qr" src={qrPayment.qrImage.startsWith('data:')?qrPayment.qrImage:`data:image/png;base64,${qrPayment.qrImage}`} alt={`QR de pago ${qrPayment.transactionId}`}/>:<div className="qr-grid">QR</div>}</div>
 
           <strong>
             Acceso seguro
           </strong>
 
           <p>
-            Ingresa un cupón. Para pagos QR, envía el comprobante mediante el formulario de contacto indicando tu correo y el test; el administrador podrá aprobarlo.
+            El cupón válido habilita el acceso inmediatamente. El pago QR solamente lo habilita cuando Banco Económico lo confirma mediante la API de ARPALSOFT.
           </p>
 
           <label>Cupón de acceso<input value={coupon} onChange={e=>setCoupon(e.target.value.toUpperCase())} placeholder="EJEMPLO100" /></label>
@@ -126,20 +121,8 @@ export default function PremiumVocationalPage() {
             </div>
           )}
           <div className="separator"><span>o paga por QR</span></div>
-          {paymentSubmitted ? <div className="payment-success" role="status">
-            <div className="payment-success-icon">✓</div>
-            <span className="eyebrow">COMPROBANTE RECIBIDO</span>
-            <h2>Gracias. Tu pago está en revisión.</h2>
-            <p>Revisaremos el comprobante y tendrás novedades en <b>Mi cuenta</b>. Cuando sea aprobado, allí aparecerá el botón para iniciar tu test avanzado.</p>
-            <p className="payment-success-note">No necesitas volver a enviarlo.</p>
-            <Link className="btn primary full" to="/cuenta">Ver estado en Mi cuenta</Link>
-          </div> : <>
-            <label>Nombre del pagador<input value={payerName} onChange={e=>setPayerName(e.target.value)}/></label>
-            <label>Referencia bancaria<input value={reference} onChange={e=>setReference(e.target.value)}/></label>
-            <label>Comprobante (JPG, PNG o PDF)<input type="file" accept="image/png,image/jpeg,application/pdf" onChange={e=>setReceipt(e.target.files?.[0]||null)}/></label>
-            <button className="btn secondary full" disabled={!receipt||checking} onClick={async()=>{if(!receipt)return;setChecking(true);setPaymentError('');try{await submitPaymentReceipt(code,receipt,payerName,reference);setPaymentSubmitted(true);setReceipt(null);setPayerName('');setReference('')}catch(e:any){setPaymentError(e.message??'No se pudo enviar el comprobante. Inténtalo nuevamente.')}finally{setChecking(false)}}}>{checking?'Enviando comprobante…':'Enviar comprobante'}</button>
-            {paymentError && <div className="alert error" role="alert">{paymentError}</div>}
-          </>}
+          {!qrPayment?<button className="btn secondary full" disabled={checking} onClick={async()=>{setChecking(true);setPaymentError('');try{setQrPayment(await generatePaymentQr(code))}catch(e:any){setPaymentError(e.message)}finally{setChecking(false)}}}>{checking?'Generando QR…':'Solicitar QR de cobro'}</button>:<div className="qr-payment-status"><h2>{qrPayment.amount} {qrPayment.currency}</h2><p>{qrPayment.productName}</p><small>Solicitud {qrPayment.transactionId} · válida hasta {qrPayment.dueDate}</small><button className="btn primary full" disabled={checking} onClick={async()=>{setChecking(true);setPaymentError('');try{const result=await verifyPaymentQr(qrPayment.paymentId);if(result.paid)navigate(`/test/${code}`);else setPaymentError(result.message||'El pago aún no fue confirmado.')}catch(e:any){setPaymentError(e.message)}finally{setChecking(false)}}}>{checking?'Verificando con el banco…':'Ya realicé el pago · Verificar'}</button><button className="btn ghost full" disabled={checking} onClick={()=>{setQrPayment(null);setPaymentError('')}}>Generar otra solicitud</button></div>}
+          {paymentError && <div className="alert error" role="alert">{paymentError}</div>}
 
         </section>
 

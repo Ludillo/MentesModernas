@@ -52,7 +52,7 @@ if (req.method === 'OPTIONS') {
     }
 
     const { data, error } = await db.rpc(
-      'create_demo_entitlement',
+      'redeem_coupon_access',
       {
         p_user_id: user.id,
         p_product_code: productCode,
@@ -76,7 +76,7 @@ if (req.method === 'OPTIONS') {
       {
         paid: true,
         accessGranted: true,
-        detail: data?.[0] ?? data ?? null
+        entitlementId: data ?? null
       }
     )
 
