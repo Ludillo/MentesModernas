@@ -93,7 +93,7 @@ export default function Layout() {
         <div className="footer-brand"><strong>MentesModernas</strong><span>Explora tus intereses, fortalezas y decisiones.</span></div>
         <div className="social-links">{activeSocialLinks(social).map(x=><a key={x.key} href={x.url} target="_blank" rel="noreferrer">{x.label}</a>)}</div>
         <span className="footer-legal"><Link to="/privacidad">Privacidad</Link><Link to="/terminos">Términos</Link></span>
-        <span className="footer-credit">Hecho por <strong>ARPALSOFT</strong></span>
+        <span className="footer-credit">Hecho por <a href="https://www.arpalsoft.com/" target="_blank" rel="noreferrer" aria-label="Visitar el sitio oficial de ARPALSOFT"><strong>ARPALSOFT</strong></a></span>
       </footer>
     </div>
   )

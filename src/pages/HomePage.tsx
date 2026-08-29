@@ -24,6 +24,11 @@ export default function HomePage() {
           <span className="eyebrow">DESCUBRE · CONECTA · DECIDE</span>
           <h1>{hero.title}</h1>
           <p>{hero.subtitle}</p>
+          <div className="hero-test-shortcuts" aria-label="Tests destacados">
+            <Link to="/test/VOCATIONAL_FREE"><span>🧭</span><strong>Orientación vocacional</strong><small>Descubre áreas que conectan contigo</small></Link>
+            <Link to="/test/LEARNING_STYLE_FREE"><span>📚</span><strong>Estilo de aprendizaje</strong><small>Conoce cómo estudias y aprendes</small></Link>
+          </div>
+          <p className="hero-more-tests">Y hay más evaluaciones para explorar tus fortalezas y características personales.</p>
           <div className="hero-actions">
             <Link className="btn primary large" to="/tests">{hero.cta}</Link>
             <Link className="btn ghost large" to="/contacto">Solicitar orientación</Link>

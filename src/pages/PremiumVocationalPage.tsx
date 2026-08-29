@@ -14,6 +14,7 @@ export default function PremiumVocationalPage() {
   const navigate = useNavigate()
   const { code = 'VOCATIONAL_PREMIUM' } = useParams()
   const [coupon,setCoupon]=useState('')
+  const qrImageSrc=qrPayment?.qrImage?(qrPayment.qrImage.startsWith('data:')?qrPayment.qrImage:`data:image/png;base64,${qrPayment.qrImage}`):''
 
   useEffect(() => {
     supabase.auth
@@ -95,10 +96,10 @@ export default function PremiumVocationalPage() {
 
           <div className={`qr-placeholder${qrPayment?' has-qr':''}`}>
             {qrPayment?.qrImage
-              ? <img className="generated-payment-qr" src={qrPayment.qrImage.startsWith('data:')?qrPayment.qrImage:`data:image/png;base64,${qrPayment.qrImage}`} alt={`QR de pago ${qrPayment.transactionId}`}/>
+              ? <img className="generated-payment-qr" src={qrImageSrc} alt={`QR de pago ${qrPayment.transactionId}`}/>
               : <div className="qr-callout" aria-hidden="true"><span className="qr-callout-icon">▦</span><strong>Haz clic abajo para generar tu QR</strong><small>Se creará al instante con el monto exacto de este test.</small><span className="qr-callout-arrow">↓</span></div>}
           </div>
-          {!qrPayment?<button className="btn primary full" disabled={qrBusy} onClick={async()=>{setQrBusy(true);setPaymentError('');try{setQrPayment(await generatePaymentQr(code))}catch(e:any){setPaymentError(e.message)}finally{setQrBusy(false)}}}>{qrBusy?'Generando QR con ARPALSOFT…':'Solicitar QR de cobro'}</button>:<div className="qr-payment-status"><h2>{qrPayment.amount} {qrPayment.currency}</h2><p>{qrPayment.productName}</p><small>Solicitud {qrPayment.transactionId} · válida hasta {qrPayment.dueDate}</small><button className="btn primary full" disabled={qrBusy} onClick={async()=>{setQrBusy(true);setPaymentError('');try{const result=await verifyPaymentQr(qrPayment.paymentId);if(result.paid)navigate(`/test/${code}`);else setPaymentError(result.message||'El pago aún no fue confirmado.')}catch(e:any){setPaymentError(e.message)}finally{setQrBusy(false)}}}>{qrBusy?'Verificando con Banco Económico…':'Ya realicé el pago · Verificar'}</button><button className="btn ghost full" disabled={qrBusy} onClick={()=>{setQrPayment(null);setPaymentError('')}}>Generar otra solicitud</button></div>}
+          {!qrPayment?<button className="btn primary full" disabled={qrBusy} onClick={async()=>{setQrBusy(true);setPaymentError('');try{setQrPayment(await generatePaymentQr(code))}catch(e:any){setPaymentError(e.message)}finally{setQrBusy(false)}}}>{qrBusy?'Generando QR con ARPALSOFT…':'Solicitar QR de cobro'}</button>:<div className="qr-payment-status"><h2>{qrPayment.amount} {qrPayment.currency}</h2><p>{qrPayment.productName}</p><small>Solicitud {qrPayment.transactionId} · válida hasta {qrPayment.dueDate}</small><a className="btn secondary full qr-download" href={qrImageSrc} download={`QR-MentesModernas-${qrPayment.transactionId}.png`}>Descargar QR</a><button className="btn primary full" disabled={qrBusy} onClick={async()=>{setQrBusy(true);setPaymentError('');try{const result=await verifyPaymentQr(qrPayment.paymentId);if(result.paid)navigate(`/test/${code}`);else setPaymentError(result.message||'El pago aún no fue confirmado.')}catch(e:any){setPaymentError(e.message)}finally{setQrBusy(false)}}}>{qrBusy?'Verificando con Banco Económico…':'Ya realicé el pago · Verificar'}</button><button className="btn ghost full" disabled={qrBusy} onClick={()=>{setQrPayment(null);setPaymentError('')}}>Generar otra solicitud</button></div>}
           {paymentError && <div className="alert error" role="alert">{paymentError}</div>}
 
           <div className="separator"><span>¿Tienes un cupón?</span></div>

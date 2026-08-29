@@ -13,6 +13,10 @@ export default function AdminDashboardPage() {
   const [contentJson,setContentJson]=useState('')
   const navigate=useNavigate()
   const session=getAdminSession()
+  const navItems:[Tab,string][]=[
+    ['overview','Resumen'],['content','Contenido'],['statistics','Indicadores'],['news','Noticias'],['social','Redes sociales'],['payments','Pagos'],['contacts','Mensajes'],
+    ['visits','Visitas'],['coupons','Cupones'],['users','Usuarios y accesos'],...(session?.admin.role==='SUPERADMIN'?([['administrators','Administradores']] as [Tab,string][]):[]),['tests','Tests y preguntas'],['reports','Reportes'],['security','Seguridad']
+  ]
 
   const load=async(t:Tab=tab)=>{
     setError('')
@@ -46,25 +50,31 @@ export default function AdminDashboardPage() {
     <main className="admin-shell">
       <aside className="admin-sidebar">
         <h2>MentesModernas</h2><span>Panel administrativo</span>
-        {[
-          ['overview','Resumen'],['content','Contenido'],['statistics','Indicadores'],['news','Noticias'],['social','Redes sociales'],['payments','Pagos'],['contacts','Mensajes'],
-          ['visits','Visitas'],['coupons','Cupones'],['users','Usuarios y accesos'],...(session.admin.role==='SUPERADMIN'?[['administrators','Administradores']]:[]),['tests','Tests y preguntas'],['reports','Reportes'],['security','Seguridad']
-        ].map(([k,l])=><button key={k} className={tab===k?'active':''} onClick={()=>setTab(k as Tab)}>{l}</button>)}
-        <button onClick={()=>{clearAdminSession();navigate('/admin/login')}}>Cerrar sesión</button>
+        <label className="admin-nav-select">Ir a una sección<select value={tab} onChange={e=>setTab(e.target.value as Tab)}>{navItems.map(([key,label])=><option value={key} key={key}>{label}</option>)}</select></label>
+        <div className="admin-nav-buttons">{navItems.map(([k,l])=><button key={k} className={tab===k?'active':''} onClick={()=>setTab(k)}>{l}</button>)}</div>
+        <button className="admin-logout" onClick={()=>{clearAdminSession();navigate('/admin/login')}}>Cerrar sesión</button>
       </aside>
 
       <section className="admin-content">
         <div className="admin-top"><div><span className="eyebrow">ADMIN</span><h1>{tab.toUpperCase()}</h1></div><span>{session.admin.email}</span></div>
         {error && <div className="alert error">{error}</div>}
 
-        {tab==='overview' && data && <div className="stat-grid">
-          <Stat label="Visitas hoy" value={data.visitsToday}/>
-          <Stat label="Visitas 30 días" value={data.visits30d}/>
-          <Stat label="Pagos" value={data.paidPayments}/>
-          <Stat label="Mensajes nuevos" value={data.unreadContacts}/>
-          <Stat label="Tests Premium" value={data.completedPremium}/>
-          <Stat label="Usuarios" value={data.totalProfiles}/>
-        </div>}
+        {tab==='overview' && data && <>
+          <section className="admin-welcome"><div><span className="eyebrow">BIENVENIDO</span><h2>El pulso de MentesModernas</h2><p>Consulta accesos, crecimiento, evaluaciones y actividad comercial desde una sola pantalla.</p></div><span className="admin-live-indicator">● Datos actuales</span></section>
+          <div className="stat-grid admin-overview-grid">
+            <Stat label="Accesos totales" value={data.totalVisits}/>
+            <Stat label="Visitas hoy" value={data.visitsToday}/>
+            <Stat label="Visitas últimos 30 días" value={data.visits30d}/>
+            <Stat label="Tests completados" value={data.totalCompleted}/>
+            <Stat label="Tests gratuitos" value={data.completedFree}/>
+            <Stat label="Tests avanzados" value={data.completedPremium}/>
+            <Stat label="Pagos confirmados" value={data.paidPayments}/>
+            <Stat label="Cuentas registradas" value={data.totalProfiles}/>
+            <Stat label="Cuentas nuevas · 30 días" value={data.newAccounts30d}/>
+            <Stat label="Usuarios recurrentes · 2+ tests" value={data.returningAccounts}/>
+            <Stat label="Mensajes nuevos" value={data.unreadContacts}/>
+          </div>
+        </>}
 
         {tab==='content' && data && <>
           <div className="admin-card">

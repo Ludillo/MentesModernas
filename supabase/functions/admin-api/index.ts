@@ -55,15 +55,26 @@ Deno.serve(async (req) => {
     if (action === 'dashboard') {
       const startToday = new Date(); startToday.setUTCHours(0,0,0,0)
       const d30 = new Date(Date.now()-30*86400000).toISOString()
-      const [visitsToday,visits30d,paidPayments,unreadContacts,completedPremium,totalProfiles] = await Promise.all([
+      const [visitsToday,visits30d,totalVisits,paidPayments,unreadContacts,totalProfiles,newAccounts30d,versions,evaluations] = await Promise.all([
         count(db,'page_visits',q=>q.gte('visited_at',startToday.toISOString())),
         count(db,'page_visits',q=>q.gte('visited_at',d30)),
+        count(db,'page_visits'),
         count(db,'payments',q=>q.eq('status','PAID')),
         count(db,'contact_messages',q=>q.eq('status','NEW')),
-        count(db,'evaluations'),
-        count(db,'profiles')
+        count(db,'profiles'),
+        count(db,'profiles',q=>q.gte('created_at',d30)),
+        db.from('test_versions').select('id,access_level'),
+        db.from('evaluations').select('user_id,test_version_id').limit(50000)
       ])
-      return json(req,{visitsToday,visits30d,paidPayments,unreadContacts,completedPremium,totalProfiles})
+      if(versions.error)throw versions.error
+      if(evaluations.error)throw evaluations.error
+      const levels=new Map((versions.data??[]).map((x:any)=>[x.id,x.access_level]))
+      const completedFree=(evaluations.data??[]).filter((x:any)=>levels.get(x.test_version_id)==='FREE').length
+      const completedPremium=(evaluations.data??[]).filter((x:any)=>levels.get(x.test_version_id)==='PREMIUM').length
+      const activity=new Map<string,number>()
+      for(const row of evaluations.data??[])activity.set(row.user_id,(activity.get(row.user_id)||0)+1)
+      const returningAccounts=[...activity.values()].filter(total=>total>1).length
+      return json(req,{visitsToday,visits30d,totalVisits,paidPayments,unreadContacts,completedFree,completedPremium,totalCompleted:completedFree+completedPremium,totalProfiles,newAccounts30d,returningAccounts})
     }
 
     if (action === 'content-list') {

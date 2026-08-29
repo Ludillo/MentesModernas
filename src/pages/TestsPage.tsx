@@ -1,11 +1,11 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { getTestCatalog } from '../services/catalogService'
 
 export default function TestsPage() {
   const navigate=useNavigate()
   const [items,setItems]=useState<any[]>([])
-  useEffect(()=>{supabase.rpc('get_test_catalog').then(({data})=>setItems(data??[]))},[])
+  useEffect(()=>{getTestCatalog().then(setItems).catch(()=>{})},[])
   const fallback=[
     {type_code:'VOCATIONAL',name:'Orientación Vocacional',description:'Explora intereses ocupacionales mediante seis áreas RIASEC.',icon:'🧭',free_code:'VOCATIONAL_FREE',free_questions:35,premium_code:'VOCATIONAL_PREMIUM',premium_questions:72,price:50,currency:'BOB'},
     {type_code:'LEARNING_STYLE',name:'Estilo de Aprendizaje',description:'Descubre cómo asimilas y organizas mejor la información.',icon:'📚',free_code:'LEARNING_STYLE_FREE',free_questions:12,premium_code:'LEARNING_STYLE_PREMIUM',premium_questions:24,price:40,currency:'BOB'},
