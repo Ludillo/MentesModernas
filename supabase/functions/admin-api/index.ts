@@ -3,6 +3,16 @@ import { adminDb } from '../_shared/supabase.ts'
 import { requireAdmin } from '../_shared/adminAuth.ts'
 import { escapeHtml, sendEmail } from '../_shared/email.ts'
 
+const qrApiBase=(Deno.env.get('ARPALSOFT_QR_API_URL')||'https://api.arpalsoft.com').trim().replace(/\/v1\/mentes-modernas\/qrs\/?$/,'').replace(/\/$/,'')
+async function qrProvider(path:string){
+  const token=Deno.env.get('ARPALSOFT_QR_API_TOKEN')
+  if(!token)throw new Error('La integración QR no está configurada')
+  const response=await fetch(`${qrApiBase}${path}`,{headers:{'Content-Type':'application/json','X-Client-Token':token}})
+  const body=await response.json().catch(()=>({error:'Respuesta inválida del proveedor QR'}))
+  if(!response.ok)throw new Error(body?.error||'No se pudo consultar el proveedor QR')
+  return body
+}
+
 async function count(db:any, table:string, filter?: (q:any)=>any) {
   let q = db.from(table).select('*', { count:'exact', head:true })
   if (filter) q = filter(q)
@@ -105,6 +115,26 @@ Deno.serve(async (req) => {
         return {...x,receipt_url,email:x.profiles?.email,product_name:x.test_products?.name,coupon_code:x.coupons?.code}
       }))
       return json(req,{items})
+    }
+
+    if(action==='qr-reconcile'){
+      const {data:pending,error}=await db.from('payments').select('id,user_id,provider_transaction_id,provider_qr_id,qr_session_id').eq('status','PENDING').not('provider_transaction_id','is',null).not('qr_session_id','is',null).order('created_at',{ascending:true}).limit(25)
+      if(error)throw error
+      let checked=0,confirmed=0,failed=0
+      for(const payment of pending??[]){
+        try{
+          const result=await qrProvider(`/v1/mentes-modernas/qrs/${encodeURIComponent(payment.provider_transaction_id)}/status?sessionId=${encodeURIComponent(payment.qr_session_id)}`)
+          checked++
+          await db.from('payments').update({provider_status:String(result.status||'pending'),provider_checked_at:new Date().toISOString(),callback_response:result}).eq('id',payment.id)
+          if(result.paid===true){
+            const {error:confirmError}=await db.rpc('confirm_verified_qr_payment',{p_user_id:payment.user_id,p_payment_id:payment.id,p_transaction_id:payment.provider_transaction_id,p_qr_id:String(result.qrId||payment.provider_qr_id||''),p_provider_response:result})
+            if(confirmError)throw confirmError
+            confirmed++
+          }
+        }catch{failed++}
+      }
+      await db.from('admin_audit_log').insert({admin_id:admin.id,action:'QR_RECONCILE',entity:'payments',payload:{checked,confirmed,failed}})
+      return json(req,{ok:true,checked,confirmed,failed,message:`Se revisaron ${checked} QR; ${confirmed} pagos fueron confirmados y ${failed} consultas fallaron.`})
     }
 
     if (action === 'payment-review') {

@@ -11,6 +11,7 @@ export default function AdminDashboardPage() {
   const [error,setError]=useState('')
   const [contentKey,setContentKey]=useState('home_hero')
   const [contentJson,setContentJson]=useState('')
+  const [navOpen,setNavOpen]=useState(false)
   const navigate=useNavigate()
   const session=getAdminSession()
   const navItems:[Tab,string][]=[
@@ -50,10 +51,11 @@ export default function AdminDashboardPage() {
     <main className="admin-shell">
       <aside className="admin-sidebar">
         <h2>MentesModernas</h2><span>Panel administrativo</span>
-        <label className="admin-nav-select">Ir a una sección<select value={tab} onChange={e=>setTab(e.target.value as Tab)}>{navItems.map(([key,label])=><option value={key} key={key}>{label}</option>)}</select></label>
-        <div className="admin-nav-buttons">{navItems.map(([k,l])=><button key={k} className={tab===k?'active':''} onClick={()=>setTab(k)}>{l}</button>)}</div>
+        <button className="admin-menu-toggle" aria-expanded={navOpen} onClick={()=>setNavOpen(open=>!open)}><span>☰</span><strong>{navItems.find(([key])=>key===tab)?.[1]}</strong><small>{navOpen?'Cerrar menú':'Ver todas las opciones'}</small></button>
+        <div className={`admin-nav-buttons${navOpen?' open':''}`}>{navItems.map(([k,l])=><button key={k} className={tab===k?'active':''} onClick={()=>{setTab(k);setNavOpen(false)}}>{l}</button>)}</div>
         <button className="admin-logout" onClick={()=>{clearAdminSession();navigate('/admin/login')}}>Cerrar sesión</button>
       </aside>
+      {navOpen&&<button className="admin-menu-backdrop" aria-label="Cerrar menú administrativo" onClick={()=>setNavOpen(false)}/>}
 
       <section className="admin-content">
         <div className="admin-top"><div><span className="eyebrow">ADMIN</span><h1>{tab.toUpperCase()}</h1></div><span>{session.admin.email}</span></div>
@@ -160,11 +162,12 @@ function ProductPrices({items,onSaved}:{items:any[],onSaved:()=>Promise<void>}){
  return <div className="admin-card"><h2>Precios de tests avanzados</h2><p className="admin-hint">Configura el valor de cobro por cada test. Moneda: bolivianos (BOB).</p>{products.map((p:any)=><div className="admin-inline-input" key={p.code}><label>{p.name}<input type="number" min="1" step="0.01" value={values[p.code]??p.price} onChange={e=>setValues(current=>({...current,[p.code]:e.target.value}))}/></label><button className="btn secondary" onClick={async()=>{try{await adminApi('product-price-update',{productCode:p.code,price:Number(values[p.code]),currency:'BOB'});setMsg(`Precio de ${p.name} actualizado.`);await onSaved()}catch(e:any){setMsg(e.message)}}}>Guardar precio</button></div>)}{msg&&<div className="alert">{msg}</div>}</div>
 }
 function PaymentsPanel({items,onRefresh}:{items:any[],onRefresh:()=>Promise<void>}){
-  const [busy,setBusy]=useState('');const [msg,setMsg]=useState('')
+  const [busy,setBusy]=useState('');const [msg,setMsg]=useState('');const [syncing,setSyncing]=useState(false)
   const review=async(id:string,status:'PAID'|'FAILED')=>{setBusy(id);setMsg('');try{await adminApi('payment-review',{id,status});setMsg(status==='PAID'?'Pago aprobado y acceso habilitado.':'Comprobante rechazado.');await onRefresh()}catch(e:any){setMsg(e.message)}finally{setBusy('')}}
+  const reconcile=async()=>{setSyncing(true);setMsg('');try{const result=await adminApi('qr-reconcile');setMsg(result.message??'Sincronización terminada.');await onRefresh()}catch(e:any){setMsg(e.message)}finally{setSyncing(false)}}
   const pending=items.filter(x=>x.status==='PENDING'), reviewed=items.filter(x=>x.status!=='PENDING')
   const list=(rows:any[])=><div className="payment-review-list">{rows.map(x=><article className="admin-card payment-review-card" key={x.id}><div><span className={`payment-status status-${String(x.status).toLowerCase()}`}>{x.status==='PENDING'?(x.provider_transaction_id?'Esperando confirmación bancaria':'Pendiente de revisión'):x.status==='PAID'?'Pagado':'Rechazado'}</span><h3>{x.product_name??'Test Premium'}</h3><p><b>{x.provider_transaction_id?`QR ${x.provider_transaction_id}`:(x.payer_name||'Nombre no indicado')}</b> · {x.email}</p><p>{x.provider_transaction_id?`Estado API: ${x.provider_status||'pending'}`:`Referencia: ${x.payer_reference||'No indicada'}`} · {x.amount} {x.currency}</p><small>Recibido: {new Date(x.created_at).toLocaleString('es-BO')}</small></div><div className="payment-review-actions">{x.provider_transaction_id?<span>Verificación automática segura</span>:<>{x.receipt_url?<a className="btn secondary" href={x.receipt_url} target="_blank" rel="noreferrer">Ver comprobante</a>:<span>Sin archivo</span>}{x.status==='PENDING'&&<><button className="btn primary" disabled={busy===x.id} onClick={()=>review(x.id,'PAID')}>Aprobar pago</button><button className="btn ghost" disabled={busy===x.id} onClick={()=>review(x.id,'FAILED')}>Rechazar</button></>}</>}</div></article>)}</div>
-  return <><div className="admin-section-head"><div><h2>Comprobantes pendientes</h2><p className="admin-hint">Abre el comprobante, verifica el monto y la referencia, y aprueba el acceso con un clic.</p></div><span className="pending-badge">{pending.length} pendientes</span></div>{msg&&<div className="alert">{msg}</div>}{pending.length?list(pending):<div className="admin-card"><p>No hay pagos pendientes de revisión.</p></div>}<h2 className="admin-subtitle">Historial de pagos</h2>{reviewed.length?list(reviewed):<p className="admin-hint">Todavía no hay pagos revisados.</p>}</>
+  return <><div className="admin-section-head"><div><h2>Pagos pendientes</h2><p className="admin-hint">La sincronización se ejecuta únicamente cuando la solicitas. Consulta una vez los QR pendientes y habilita solo los pagos confirmados por Banco Económico.</p></div><div className="payment-sync-actions"><span className="pending-badge">{pending.length} pendientes</span><button className="btn primary" disabled={syncing||!pending.some(x=>x.provider_transaction_id)} onClick={reconcile}>{syncing?'Sincronizando…':'Sincronizar pagos QR'}</button></div></div>{msg&&<div className="alert">{msg}</div>}{pending.length?list(pending):<div className="admin-card"><p>No hay pagos pendientes de revisión.</p></div>}<h2 className="admin-subtitle">Historial de pagos</h2>{reviewed.length?list(reviewed):<p className="admin-hint">Todavía no hay pagos revisados.</p>}</>
 }
 function Table({rows,columns}:{rows:any[],columns:string[]}){return <div className="table-wrap"><table><thead><tr>{columns.map(c=><th key={c}>{c}</th>)}</tr></thead><tbody>{rows.map((r,i)=><tr key={i}>{columns.map(c=><td key={c}>{String(r[c]??'')}</td>)}</tr>)}</tbody></table></div>}
 function SecurityPanel(){
