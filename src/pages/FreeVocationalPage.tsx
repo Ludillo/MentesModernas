@@ -12,6 +12,7 @@ export default function FreeVocationalPage() {
   const navigate=useNavigate()
   const [questions, setQuestions] = useState<TestQuestion[]>([])
   const [results, setResults] = useState<AreaResult[] | null>(null)
+  useEffect(()=>{if(results)window.scrollTo({top:0,behavior:'smooth'})},[results])
   const [error, setError] = useState('')
 
   useEffect(() => {
