@@ -118,23 +118,27 @@ Deno.serve(async (req) => {
     }
 
     if(action==='qr-reconcile'){
-      const {data:pending,error}=await db.from('payments').select('id,user_id,provider_transaction_id,provider_qr_id,qr_session_id').eq('status','PENDING').not('provider_transaction_id','is',null).not('qr_session_id','is',null).order('created_at',{ascending:true}).limit(25)
+      const date=String(body.date??new Date().toISOString().slice(0,10))
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return json(req,{error:'Fecha no válida'},400)
+      const {data:pending,error}=await db.from('payments').select('id,user_id,amount,currency,provider_transaction_id,provider_qr_id').eq('status','PENDING').not('provider_transaction_id','is',null).order('created_at',{ascending:true}).limit(5000)
       if(error)throw error
-      let checked=0,confirmed=0,failed=0
+      const report=await qrProvider(`/v1/mentes-modernas/payments?date=${encodeURIComponent(date)}`)
+      const bankPayments=new Map((report.payments??[]).map((payment:any)=>[String(payment.transactionId),payment]))
+      let confirmed=0,failed=0
       for(const payment of pending??[]){
+        const bankPayment=bankPayments.get(String(payment.provider_transaction_id)) as any
+        if(!bankPayment){await db.from('payments').update({provider_checked_at:new Date().toISOString()}).eq('id',payment.id);continue}
         try{
-          const result=await qrProvider(`/v1/mentes-modernas/qrs/${encodeURIComponent(payment.provider_transaction_id)}/status?sessionId=${encodeURIComponent(payment.qr_session_id)}`)
-          checked++
-          await db.from('payments').update({provider_status:String(result.status||'pending'),provider_checked_at:new Date().toISOString(),callback_response:result}).eq('id',payment.id)
-          if(result.paid===true){
-            const {error:confirmError}=await db.rpc('confirm_verified_qr_payment',{p_user_id:payment.user_id,p_payment_id:payment.id,p_transaction_id:payment.provider_transaction_id,p_qr_id:String(result.qrId||payment.provider_qr_id||''),p_provider_response:result})
+          if(Number(bankPayment.amount)!==Number(payment.amount)||String(bankPayment.currency)!==String(payment.currency))throw new Error('El monto o la moneda no coincide')
+          const result={...bankPayment,status:'paid',paid:true,reportDate:date}
+          const {error:confirmError}=await db.rpc('confirm_verified_qr_payment',{p_user_id:payment.user_id,p_payment_id:payment.id,p_transaction_id:payment.provider_transaction_id,p_qr_id:String(bankPayment.qrId||payment.provider_qr_id||''),p_provider_response:result})
             if(confirmError)throw confirmError
             confirmed++
-          }
         }catch{failed++}
       }
-      await db.from('admin_audit_log').insert({admin_id:admin.id,action:'QR_RECONCILE',entity:'payments',payload:{checked,confirmed,failed}})
-      return json(req,{ok:true,checked,confirmed,failed,message:`Se revisaron ${checked} QR; ${confirmed} pagos fueron confirmados y ${failed} consultas fallaron.`})
+      const checked=(pending??[]).length,reportCount=Number(report.count??(report.payments??[]).length)
+      await db.from('admin_audit_log').insert({admin_id:admin.id,action:'QR_RECONCILE',entity:'payments',payload:{date,checked,reportCount,confirmed,failed}})
+      return json(req,{ok:true,date,checked,reportCount,confirmed,failed,message:`Reporte ${date}: ${reportCount} pagos bancarios, ${checked} QR pendientes revisados, ${confirmed} accesos confirmados y ${failed} coincidencias inválidas.`})
     }
 
     if (action === 'payment-review') {
