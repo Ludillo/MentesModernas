@@ -3,7 +3,7 @@ import { adminApi, clearAdminSession, getAdminSession, uploadLogo } from '../ser
 import { useNavigate } from 'react-router-dom'
 import { EMPTY_SOCIAL_SETTINGS, SocialSettings } from '../lib/social'
 
-type Tab='overview'|'content'|'statistics'|'news'|'social'|'payments'|'contacts'|'visits'|'coupons'|'users'|'tests'|'reports'|'security'
+type Tab='overview'|'content'|'statistics'|'news'|'social'|'payments'|'contacts'|'visits'|'coupons'|'users'|'administrators'|'tests'|'reports'|'security'
 
 export default function AdminDashboardPage() {
   const [tab,setTab]=useState<Tab>('overview')
@@ -17,7 +17,7 @@ export default function AdminDashboardPage() {
   const load=async(t:Tab=tab)=>{
     setError('')
     try {
-      const action = t==='overview'?'dashboard':['content','social','statistics','news'].includes(t)?'content-list':t==='payments'?'payments-list':t==='contacts'?'contacts-list':t==='visits'||t==='reports'?'analytics-summary':t==='coupons'?'coupons-list':t==='users'?'users-list':t==='tests'?'tests-list':'me'
+      const action = t==='overview'?'dashboard':['content','social','statistics','news'].includes(t)?'content-list':t==='payments'?'payments-list':t==='contacts'?'contacts-list':t==='visits'||t==='reports'?'analytics-summary':t==='coupons'?'coupons-list':t==='users'?'users-list':t==='administrators'?'admins-list':t==='tests'?'tests-list':'me'
       setData(await adminApi(action))
     } catch(e:any){setError(e.message)}
   }
@@ -48,7 +48,7 @@ export default function AdminDashboardPage() {
         <h2>MentesModernas</h2><span>Panel administrativo</span>
         {[
           ['overview','Resumen'],['content','Contenido'],['statistics','Indicadores'],['news','Noticias'],['social','Redes sociales'],['payments','Pagos'],['contacts','Mensajes'],
-          ['visits','Visitas'],['coupons','Cupones'],['users','Usuarios y accesos'],['tests','Tests y preguntas'],['reports','Reportes'],['security','Seguridad']
+          ['visits','Visitas'],['coupons','Cupones'],['users','Usuarios y accesos'],...(session.admin.role==='SUPERADMIN'?[['administrators','Administradores']]:[]),['tests','Tests y preguntas'],['reports','Reportes'],['security','Seguridad']
         ].map(([k,l])=><button key={k} className={tab===k?'active':''} onClick={()=>setTab(k as Tab)}>{l}</button>)}
         <button onClick={()=>{clearAdminSession();navigate('/admin/login')}}>Cerrar sesión</button>
       </aside>
@@ -100,6 +100,7 @@ export default function AdminDashboardPage() {
           <Table rows={data.items??[]} columns={['code','discount_type','discount_value','max_uses','uses_count','valid_until','is_active']}/>
         </>}
         {tab==='users' && data && <><Table rows={data.items??[]} columns={['email','full_name','created_at']}/><ActionBox title="Autorizar acceso manual" fields="Correo del usuario,Código Premium del test" onRun={async v=>{await adminApi('access-grant',{email:v[0],productCode:v[1].toUpperCase()});alert('Acceso autorizado')}}/></>}
+        {tab==='administrators' && data && <AdministratorsPanel items={data.items??[]} onRefresh={()=>load('administrators')}/>}
         {tab==='tests' && data && <><Table rows={(data.items??[]).map((x:any)=>({code:x.code,name:x.name,status:x.status,versions:x.test_versions?.length??0}))} columns={['code','name','status','versions']}/><p className="admin-hint">El catálogo, versiones, preguntas y precios se leen desde la base de datos. El monto guardado aquí es el que se envía a la API QR.</p><ProductPrices items={data.items??[]} onSaved={()=>load('tests')}/><ActionBox title="Guardar pregunta" fields="ID versión,Número,Dimensión,Pregunta" onRun={async v=>{await adminApi('question-save',{item:{testVersionId:v[0],number:v[1],dimensionCode:v[2],prompt:v[3]}});load('tests')}}/></>}
         {tab==='reports' && data && <><div className="stat-grid"><Stat label="Visitas 7 días" value={data.last7d}/><Stat label="Visitas 30 días" value={data.last30d}/><Stat label="Usuarios únicos" value={data.unique30d}/></div><Table rows={data.topPages??[]} columns={['path','views']}/><button className="btn secondary" onClick={()=>window.print()}>Imprimir / guardar PDF</button></>}
         {tab==='security' && <SecurityPanel/>}
@@ -118,7 +119,7 @@ function NewsPanel({initial}:{initial?:any}){
   const [articles,setArticles]=useState<any[]>(initial?.articles??[]);const [msg,setMsg]=useState('')
   const update=(i:number,key:string,value:string)=>setArticles(a=>a.map((x,n)=>n===i?{...x,[key]:value}:x))
   const add=()=>setArticles(a=>[...a,{id:crypto.randomUUID(),category:'NUEVO',title:'Nuevo artículo',excerpt:'Escribe aquí un resumen informativo.',read_time:'4 min de lectura'}])
-  return <div className="admin-card"><div className="admin-section-head"><div><h2>Noticias y contenidos</h2><p className="admin-hint">Administra las tarjetas educativas que aparecen en la portada y en Noticias.</p></div><button className="btn secondary" onClick={add}>+ Agregar noticia</button></div><div className="news-editor-list">{articles.map((x,i)=><fieldset key={x.id}><legend>Noticia {i+1}</legend><label>Categoría<input value={x.category??''} onChange={e=>update(i,'category',e.target.value)}/></label><label>Título<input value={x.title??''} onChange={e=>update(i,'title',e.target.value)}/></label><label>Resumen<textarea rows={4} value={x.excerpt??''} onChange={e=>update(i,'excerpt',e.target.value)}/></label><label>Tiempo de lectura<input value={x.read_time??''} onChange={e=>update(i,'read_time',e.target.value)}/></label><button className="btn ghost" onClick={()=>setArticles(a=>a.filter((_,n)=>n!==i))}>Quitar de la publicación</button></fieldset>)}</div><button className="btn primary" onClick={async()=>{try{await adminApi('content-update',{key:'news',value:{articles}});setMsg('Noticias publicadas.')}catch(e:any){setMsg(e.message)}}}>Guardar y publicar noticias</button>{msg&&<div className="alert">{msg}</div>}</div>
+  return <div className="admin-card"><div className="admin-section-head"><div><h2>Noticias y contenidos</h2><p className="admin-hint">Administra las tarjetas educativas que aparecen en la portada y en Noticias. Utiliza fuentes en español pensadas para público latinoamericano.</p></div><button className="btn secondary" onClick={add}>+ Agregar noticia</button></div><div className="news-editor-list">{articles.map((x,i)=><fieldset key={x.id}><legend>Noticia {i+1}</legend><label>Categoría<input value={x.category??''} onChange={e=>update(i,'category',e.target.value)}/></label><label>Título<input value={x.title??''} onChange={e=>update(i,'title',e.target.value)}/></label><label>Resumen<textarea rows={4} value={x.excerpt??''} onChange={e=>update(i,'excerpt',e.target.value)}/></label><label>Fuente en español<input value={x.source??''} onChange={e=>update(i,'source',e.target.value)}/></label><label>Enlace de la fuente<input type="url" value={x.url??''} onChange={e=>update(i,'url',e.target.value)}/></label><label>Texto del enlace<input value={x.link_label??''} onChange={e=>update(i,'link_label',e.target.value)}/></label><label>Tiempo de lectura<input value={x.read_time??''} onChange={e=>update(i,'read_time',e.target.value)}/></label><button className="btn ghost" onClick={()=>setArticles(a=>a.filter((_,n)=>n!==i))}>Quitar de la publicación</button></fieldset>)}</div><button className="btn primary" onClick={async()=>{try{await adminApi('content-update',{key:'news',value:{articles}});setMsg('Noticias publicadas.')}catch(e:any){setMsg(e.message)}}}>Guardar y publicar noticias</button>{msg&&<div className="alert">{msg}</div>}</div>
 }
 
 function SocialPanel({initial}:{initial?:SocialSettings}){
@@ -138,6 +139,11 @@ function SocialPanel({initial}:{initial?:SocialSettings}){
 }
 
 function Stat({label,value}:{label:string,value:any}){return <div className="stat-card"><span>{label}</span><strong>{value ?? 0}</strong></div>}
+function AdministratorsPanel({items,onRefresh}:{items:any[],onRefresh:()=>Promise<void>}){
+ const [email,setEmail]=useState('');const [name,setName]=useState('');const [role,setRole]=useState('ADMIN');const [msg,setMsg]=useState('')
+ const add=async()=>{try{await adminApi('admin-create',{email,displayName:name,role});setEmail('');setName('');setMsg('Administrador agregado. Ya puede entrar con su cuenta Google.');await onRefresh()}catch(e:any){setMsg(e.message)}}
+ return <><div className="admin-card"><h2>Agregar administrador con Google</h2><p className="admin-hint">Registra el mismo correo que la persona utiliza en Google. No se comparte ni almacena su contraseña de Gmail.</p><label>Nombre<input value={name} onChange={e=>setName(e.target.value)}/></label><label>Correo Google<input type="email" value={email} onChange={e=>setEmail(e.target.value.toLowerCase())} placeholder="persona@gmail.com"/></label><label>Rol<select value={role} onChange={e=>setRole(e.target.value)}><option value="ADMIN">Administrador</option><option value="SUPERADMIN">Superadministrador</option></select></label><button className="btn primary" disabled={!email||!name} onClick={add}>Agregar administrador</button>{msg&&<div className="alert">{msg}</div>}</div><div className="payment-review-list">{items.map(x=><article className="admin-card payment-review-card" key={x.id}><div><span className={`payment-status ${x.is_active?'status-paid':'status-cancelled'}`}>{x.is_active?'Activo':'Desactivado'}</span><h3>{x.display_name}</h3><p>{x.email} · {x.role}</p><small>{x.last_login_at?`Último acceso: ${new Date(x.last_login_at).toLocaleString('es-BO')}`:'Todavía no inició con Google'}</small></div><button className="btn secondary" onClick={async()=>{try{await adminApi('admin-toggle',{id:x.id,isActive:!x.is_active});await onRefresh()}catch(e:any){setMsg(e.message)}}}>{x.is_active?'Desactivar':'Activar'}</button></article>)}</div></>
+}
 function ProductPrices({items,onSaved}:{items:any[],onSaved:()=>Promise<void>}){
  const products=items.flatMap(type=>(type.test_versions??[]).flatMap((version:any)=>(version.test_products??[]).filter((product:any)=>product.access_level==='PREMIUM')))
  const [values,setValues]=useState<Record<string,string>>(Object.fromEntries(products.map((p:any)=>[p.code,String(p.price)])));const [msg,setMsg]=useState('')

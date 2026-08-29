@@ -6,6 +6,9 @@ verify_jwt = false
 [functions.admin-verify]
 verify_jwt = false
 
+[functions.admin-google-auth]
+verify_jwt = false
+
 [functions.admin-api]
 verify_jwt = false
 

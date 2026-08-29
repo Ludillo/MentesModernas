@@ -1,4 +1,5 @@
 import type { AdminSession } from '../types/models'
+import { supabase } from '../lib/supabase'
 
 const STORAGE_KEY = 'mm_admin_session'
 
@@ -44,6 +45,19 @@ export async function verifyAdmin(email: string, password: string, otp: string) 
   if (!res.ok) throw new Error(data.error ?? 'No fue posible ingresar')
   sessionStorage.setItem(STORAGE_KEY, JSON.stringify(data))
   return data as AdminSession
+}
+
+export async function signInAdminWithGoogle(){
+ const {error}=await supabase.auth.signInWithOAuth({provider:'google',options:{redirectTo:`${window.location.origin}/admin/login`}})
+ if(error)throw error
+}
+
+export async function restoreGoogleAdminSession(){
+ const {data}=await supabase.auth.getSession();const accessToken=data.session?.access_token
+ if(!accessToken)return null
+ const res=await fetch(functionUrl('admin-google-auth'),{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${accessToken}`,apikey:import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}})
+ const payload=await res.json();if(!res.ok)throw new Error(payload.error??'Este correo no tiene acceso administrativo.')
+ sessionStorage.setItem(STORAGE_KEY,JSON.stringify(payload));return payload as AdminSession
 }
 
 export async function adminApi(action: string, payload: Record<string, unknown> = {}) {

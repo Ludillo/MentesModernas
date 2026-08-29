@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { requestAdminOtp, verifyAdmin } from '../services/adminService'
+import { useEffect, useState } from 'react'
+import { getAdminSession, requestAdminOtp, restoreGoogleAdminSession, signInAdminWithGoogle, verifyAdmin } from '../services/adminService'
 import { useNavigate } from 'react-router-dom'
 
 export default function AdminLoginPage() {
@@ -9,6 +9,11 @@ export default function AdminLoginPage() {
   const [step,setStep]=useState<1|2>(1)
   const [msg,setMsg]=useState('')
   const navigate=useNavigate()
+
+  useEffect(()=>{
+    if(getAdminSession()){navigate('/admin');return}
+    restoreGoogleAdminSession().then(session=>{if(session)navigate('/admin')}).catch(e=>setMsg(e.message))
+  },[])
 
   const request=async()=>{
     setMsg('')
@@ -26,6 +31,9 @@ export default function AdminLoginPage() {
       <section className="admin-login-card">
         <span className="eyebrow">ADMINISTRACIÓN SEGURA</span>
         <h1>MentesModernas Admin</h1>
+        <p>Si tu sesión de Google ya está iniciada y el correo figura como administrador, el acceso continuará automáticamente.</p>
+        <button className="btn google full" onClick={async()=>{try{setMsg('');await signInAdminWithGoogle()}catch(e:any){setMsg(e.message)}}}>Continuar con Google</button>
+        <div className="separator"><span>o usa el acceso de respaldo</span></div>
         {step===1 ? <>
           <p>Ingresa tu correo administrativo. La plataforma enviará un token si el usuario está habilitado.</p>
           <label>Correo<input value={email} onChange={e=>setEmail(e.target.value)} /></label>

@@ -16,12 +16,41 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return json(req, { error:'Method not allowed' }, 405)
 
   try {
-    const admin = await requireAdmin(req)
+    const tokenAdmin = await requireAdmin(req)
     const body = await req.json()
     const action = String(body.action ?? '')
     const db = adminDb()
+    const {data:activeAdmin,error:activeAdminError}=await db.from('admin_users').select('id,email,display_name,role,is_active').eq('id',tokenAdmin.id).maybeSingle()
+    if(activeAdminError)throw activeAdminError
+    if(!activeAdmin?.is_active)return json(req,{error:'La cuenta administrativa ya no está activa.'},403)
+    const admin={id:activeAdmin.id,email:activeAdmin.email,name:activeAdmin.display_name,role:activeAdmin.role}
 
     if (action === 'me') return json(req, { admin })
+
+    if(action==='admins-list'){
+      if(admin.role!=='SUPERADMIN')return json(req,{error:'Solo un superadministrador puede gestionar accesos.'},403)
+      const {data,error}=await db.from('admin_users').select('id,email,display_name,role,is_active,auth_provider,last_login_at,created_at').order('created_at');if(error)throw error
+      return json(req,{items:data})
+    }
+
+    if(action==='admin-create'){
+      if(admin.role!=='SUPERADMIN')return json(req,{error:'Solo un superadministrador puede agregar administradores.'},403)
+      const email=String(body.email??'').trim().toLowerCase(),displayName=String(body.displayName??'').trim(),role=String(body.role??'ADMIN')
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!displayName)return json(req,{error:'Correo y nombre son obligatorios.'},400)
+      if(!['ADMIN','SUPERADMIN'].includes(role))return json(req,{error:'Rol no válido.'},400)
+      const {data,error}=await db.from('admin_users').upsert({email,display_name:displayName,role,is_active:true,auth_provider:'google',password_hash:null,updated_at:new Date().toISOString()},{onConflict:'email'}).select('id').single();if(error)throw error
+      await db.from('admin_audit_log').insert({admin_id:admin.id,action:'ADMIN_CREATE',entity:'admin_users',entity_id:data.id,payload:{email,role}})
+      return json(req,{ok:true})
+    }
+
+    if(action==='admin-toggle'){
+      if(admin.role!=='SUPERADMIN')return json(req,{error:'Solo un superadministrador puede cambiar accesos.'},403)
+      const id=String(body.id??''),isActive=Boolean(body.isActive)
+      if(id===admin.id&&!isActive)return json(req,{error:'No puedes desactivar tu propia cuenta.'},400)
+      const {error}=await db.from('admin_users').update({is_active:isActive,updated_at:new Date().toISOString()}).eq('id',id);if(error)throw error
+      await db.from('admin_audit_log').insert({admin_id:admin.id,action:isActive?'ADMIN_ENABLE':'ADMIN_DISABLE',entity:'admin_users',entity_id:id})
+      return json(req,{ok:true})
+    }
 
     if (action === 'dashboard') {
       const startToday = new Date(); startToday.setUTCHours(0,0,0,0)
