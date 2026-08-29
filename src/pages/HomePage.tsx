@@ -1,9 +1,10 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import LogoHero from '../components/LogoHero'
 import { loadContent } from '../services/contentService'
 
 export default function HomePage() {
+  const navigate=useNavigate()
   const [content, setContent] = useState<any>({})
 
   useEffect(() => { loadContent().then(setContent).catch(() => {}) }, [])
@@ -44,29 +45,29 @@ export default function HomePage() {
           <p>Diseñada para jóvenes, padres y procesos de orientación modernos.</p>
         </div>
         <div className="module-grid">
-          <article className="module-card featured intense-card">
+          <article className="module-card featured intense-card clickable-card" role="link" tabIndex={0} onClick={()=>navigate('/tests')} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();navigate('/tests')}}}>
             <div className="module-icon">🧭</div>
             <span className="badge live">DISPONIBLE</span>
             <h3>Orientación Vocacional</h3>
             <p>Explora intereses, áreas y posibilidades de carrera con una experiencia gratuita y otra premium mucho más detallada.</p>
-            <Link to="/tests">Explorar →</Link>
+            <Link onClick={e=>e.stopPropagation()} to="/tests">Explorar →</Link>
           </article>
-          <article className="module-card intense-card">
+          <article className="module-card intense-card clickable-card" role="link" tabIndex={0} onClick={()=>navigate('/test/LEARNING_STYLE_FREE')} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();navigate('/test/LEARNING_STYLE_FREE')}}}>
             <div className="module-icon">📚</div><span className="badge live">DISPONIBLE</span>
             <h3>Estilo de Aprendizaje</h3><p>Conoce cómo aprendes mejor y cómo mejorar tu rendimiento de estudio.</p>
-            <Link to="/test/LEARNING_STYLE_FREE">Comenzar gratis →</Link>
+            <Link onClick={e=>e.stopPropagation()} to="/test/LEARNING_STYLE_FREE">Comenzar gratis →</Link>
           </article>
-          <article className="module-card intense-card">
+          <article className="module-card intense-card clickable-card" role="link" tabIndex={0} onClick={()=>navigate('/test/PERSONAL_STRENGTHS_FREE')} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();navigate('/test/PERSONAL_STRENGTHS_FREE')}}}>
             <div className="module-icon">✦</div><span className="badge live">DISPONIBLE</span>
             <h3>Fortalezas Personales</h3><p>Identifica tus talentos, recursos personales y tu potencial para destacar.</p>
-            <Link to="/test/PERSONAL_STRENGTHS_FREE">Comenzar gratis →</Link>
+            <Link onClick={e=>e.stopPropagation()} to="/test/PERSONAL_STRENGTHS_FREE">Comenzar gratis →</Link>
           </article>
         </div>
       </section>
 
       <section className="section news-section">
         <div className="section-title"><span className="eyebrow">MENTES AL DÍA</span><h2>Noticias para comprender una mente diversa</h2><p>Información cercana y responsable sobre neurodiversidad, aprendizaje y bienestar.</p></div>
-        <div className="news-grid">{news.slice(0,3).map((item:any)=><article className="news-card" key={item.id}><span>{item.category}</span><h3>{item.title}</h3><p>{item.excerpt}</p><small>{item.source?`${item.source} · `:''}{item.read_time}</small>{item.url&&<a className="news-source-link" href={item.url} target="_blank" rel="noreferrer">{item.link_label??'Consultar fuente'} ↗</a>}</article>)}</div>
+        <div className="news-grid">{news.slice(0,3).map((item:any)=><article className="news-card" key={item.id}><span>{item.category}</span><h3>{item.title}</h3><p>{item.excerpt}</p><small>{item.source?`${item.source} · `:''}{item.read_time}</small>{item.url&&<a className="news-source-link" href={item.url} target="_blank" rel="noreferrer">{item.link_label??'Leer más'} ↗</a>}</article>)}</div>
         <div className="news-more"><Link className="btn secondary" to="/noticias">Ver todas las noticias</Link></div>
       </section>
     </main>

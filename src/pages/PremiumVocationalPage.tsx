@@ -7,6 +7,7 @@ import { generatePaymentQr, QrPayment, validatePayment, verifyPaymentQr } from '
 export default function PremiumVocationalPage() {
   const [session, setSession] = useState<any>(null)
   const [checking, setChecking] = useState(false)
+  const [qrBusy,setQrBusy]=useState(false)
   const [message, setMessage] = useState('')
   const [paymentError, setPaymentError] = useState('')
   const [qrPayment,setQrPayment]=useState<QrPayment|null>(null)
@@ -99,30 +100,15 @@ export default function PremiumVocationalPage() {
           </strong>
 
           <p>
-            El cupón válido habilita el acceso inmediatamente. El pago QR solamente lo habilita cuando Banco Económico lo confirma mediante la API de ARPALSOFT.
+            Genera el QR con el monto configurado. El acceso se habilita únicamente cuando Banco Económico confirma el pago mediante la API de ARPALSOFT.
           </p>
-
-          <label>Cupón de acceso<input value={coupon} onChange={e=>setCoupon(e.target.value.toUpperCase())} placeholder="EJEMPLO100" /></label>
-
-          <button
-            type="button"
-            className="btn primary full"
-            disabled={checking || !coupon.trim()}
-            onClick={continuePremium}
-          >
-            {checking
-              ? 'Ingresando...'
-              : 'Validar cupón y acceder'}
-          </button>
-
-          {message && (
-            <div className="alert">
-              {message}
-            </div>
-          )}
-          <div className="separator"><span>o paga por QR</span></div>
-          {!qrPayment?<button className="btn secondary full" disabled={checking} onClick={async()=>{setChecking(true);setPaymentError('');try{setQrPayment(await generatePaymentQr(code))}catch(e:any){setPaymentError(e.message)}finally{setChecking(false)}}}>{checking?'Generando QR…':'Solicitar QR de cobro'}</button>:<div className="qr-payment-status"><h2>{qrPayment.amount} {qrPayment.currency}</h2><p>{qrPayment.productName}</p><small>Solicitud {qrPayment.transactionId} · válida hasta {qrPayment.dueDate}</small><button className="btn primary full" disabled={checking} onClick={async()=>{setChecking(true);setPaymentError('');try{const result=await verifyPaymentQr(qrPayment.paymentId);if(result.paid)navigate(`/test/${code}`);else setPaymentError(result.message||'El pago aún no fue confirmado.')}catch(e:any){setPaymentError(e.message)}finally{setChecking(false)}}}>{checking?'Verificando con el banco…':'Ya realicé el pago · Verificar'}</button><button className="btn ghost full" disabled={checking} onClick={()=>{setQrPayment(null);setPaymentError('')}}>Generar otra solicitud</button></div>}
+          {!qrPayment?<button className="btn primary full" disabled={qrBusy} onClick={async()=>{setQrBusy(true);setPaymentError('');try{setQrPayment(await generatePaymentQr(code))}catch(e:any){setPaymentError(e.message)}finally{setQrBusy(false)}}}>{qrBusy?'Generando QR con ARPALSOFT…':'Solicitar QR de cobro'}</button>:<div className="qr-payment-status"><h2>{qrPayment.amount} {qrPayment.currency}</h2><p>{qrPayment.productName}</p><small>Solicitud {qrPayment.transactionId} · válida hasta {qrPayment.dueDate}</small><button className="btn primary full" disabled={qrBusy} onClick={async()=>{setQrBusy(true);setPaymentError('');try{const result=await verifyPaymentQr(qrPayment.paymentId);if(result.paid)navigate(`/test/${code}`);else setPaymentError(result.message||'El pago aún no fue confirmado.')}catch(e:any){setPaymentError(e.message)}finally{setQrBusy(false)}}}>{qrBusy?'Verificando con Banco Económico…':'Ya realicé el pago · Verificar'}</button><button className="btn ghost full" disabled={qrBusy} onClick={()=>{setQrPayment(null);setPaymentError('')}}>Generar otra solicitud</button></div>}
           {paymentError && <div className="alert error" role="alert">{paymentError}</div>}
+
+          <div className="separator"><span>¿Tienes un cupón?</span></div>
+          <label>Cupón de acceso<input value={coupon} onChange={e=>setCoupon(e.target.value.toUpperCase())} placeholder="INGRESA TU CUPÓN" /></label>
+          <button type="button" className="btn secondary full" disabled={checking || !coupon.trim()} onClick={continuePremium}>{checking?'Validando cupón…':'Habilitar acceso con cupón'}</button>
+          {message && <div className="alert">{message}</div>}
 
         </section>
 

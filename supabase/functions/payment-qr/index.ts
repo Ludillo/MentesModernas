@@ -1,7 +1,8 @@
 import { corsHeaders, json } from '../_shared/cors.ts'
 import { requireUser } from '../_shared/supabase.ts'
 
-const apiBase=(Deno.env.get('ARPALSOFT_QR_API_URL')||'https://api.arpalsoft.com').replace(/\/$/,'')
+const configuredApi=(Deno.env.get('ARPALSOFT_QR_API_URL')||'https://api.arpalsoft.com').trim()
+const apiBase=configuredApi.replace(/\/v1\/mentes-modernas\/qrs\/?$/,'').replace(/\/$/,'')
 const apiToken=()=>{const value=Deno.env.get('ARPALSOFT_QR_API_TOKEN');if(!value)throw new Error('La integración QR no está configurada');return value}
 async function provider(path:string,init:RequestInit={}){
   const response=await fetch(`${apiBase}${path}`,{...init,headers:{'Content-Type':'application/json','X-Client-Token':apiToken(),...(init.headers||{})}})
