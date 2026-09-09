@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { backend } from '../lib/backend'
 import { Link, useNavigate } from 'react-router-dom'
 import { useParams } from 'react-router-dom'
+import {testMeta} from '../lib/testMeta'
+import {getTestCatalog,type TestCatalogItem} from '../services/catalogService'
 import { generatePaymentQr, hasPremiumAccess, QrPayment, validatePayment, verifyPaymentQr } from '../services/paymentService'
 
 export default function PremiumVocationalPage() {
@@ -16,14 +18,16 @@ export default function PremiumVocationalPage() {
   const navigate = useNavigate()
   const { code = 'VOCATIONAL_PREMIUM' } = useParams()
   const [coupon,setCoupon]=useState('')
+  const [offer,setOffer]=useState<TestCatalogItem|null>(null)
+  useEffect(()=>{getTestCatalog().then(items=>setOffer(items.find(x=>x.premium_code===code)??null)).catch(()=>setOffer(null))},[code])
   const qrImageSrc=qrPayment?.qrImage?(qrPayment.qrImage.startsWith('data:')?qrPayment.qrImage:`data:image/png;base64,${qrPayment.qrImage}`):''
 
   useEffect(() => {
-    supabase.auth
+    backend.auth
       .getSession()
       .then(({ data }) => setSession(data.session))
 
-    const { data } = supabase.auth.onAuthStateChange((_e, s) => {
+    const { data } = backend.auth.onAuthStateChange((_e, s) => {
       setSession(s)
     })
 
@@ -51,7 +55,7 @@ export default function PremiumVocationalPage() {
 
           <Link
             className="btn primary large"
-            to="/ingresar"
+            to={`/ingresar?next=${encodeURIComponent(`/acceso/${code}`)}`}
           >
             Ingresar
           </Link>
@@ -88,9 +92,10 @@ export default function PremiumVocationalPage() {
           </span>
 
           <h1>
-            Evaluación avanzada
+            {testMeta(code).title}
           </h1>
 
+          {offer&&<h2>{offer.price} {offer.currency==='BOB'?'Bs':offer.currency}</h2>}
           <p>
             Accede con un cupón válido de un uso o solicita un QR de cobro por el monto configurado para este test.
           </p>

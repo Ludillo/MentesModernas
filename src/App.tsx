@@ -17,6 +17,7 @@ import AdminDashboardPage from './pages/AdminDashboardPage'
 import GenericTestPage from './pages/GenericTestPage'
 import LegalPage from './pages/LegalPage'
 import NewsPage from './pages/NewsPage'
+import Career2026LandingPage from './pages/Career2026LandingPage'
 
 export default function App(){
   const [showSplash, setShowSplash] = useState(() => sessionStorage.getItem('mm_seen_splash') !== '1')
@@ -37,6 +38,7 @@ export default function App(){
       <Route element={<Layout/>}>
         <Route path="/" element={<HomePage/>}/>
         <Route path="/tests" element={<TestsPage/>}/>
+        <Route path="/tests/vocacional-ia-2026" element={<Career2026LandingPage/>}/>
         <Route path="/tests/vocacional" element={<VocationalLandingPage/>}/>
         <Route path="/tests/vocacional/gratis" element={<FreeVocationalPage/>}/>
         <Route path="/premium/vocacional" element={<PremiumVocationalPage/>}/>

@@ -1,7 +1,7 @@
-import { supabase } from '../lib/supabase'
+import { backend } from '../lib/backend'
 
 export async function loadContent() {
-  const { data, error } = await supabase
+  const { data, error } = await backend
     .from('site_content')
     .select('key,value')
     .eq('is_active', true)

@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
+import { backend } from '../lib/backend'
 import TestFeedback from '../components/TestFeedback'
 import { Link } from 'react-router-dom'
 import { testMeta } from '../lib/testMeta'
 import { Methodology } from './GenericTestPage'
+import Career2026Report from '../components/Career2026Report'
 
 export default function PremiumResultPage() {
   const { id } = useParams()
@@ -13,7 +14,7 @@ export default function PremiumResultPage() {
 
   useEffect(() => {
     window.scrollTo({top:0,behavior:'smooth'})
-    supabase.from('evaluations')
+    backend.from('evaluations')
       .select('id,completed_at,result_json,test_types(name),test_versions(code,access_level)')
       .eq('id', id)
       .single()
@@ -53,7 +54,8 @@ export default function PremiumResultPage() {
           <div><h3>Afinidad complementaria</h3>{(r.mediumCompatibility ?? []).map((x:string)=><span key={x}>{x}</span>)}</div>
         </div>
       </section>}
-      {!hasCareers && <section className="career-report">
+      {r.pathways&&<Career2026Report report={r}/>}
+      {!hasCareers && !r.pathways && <section className="career-report">
         <h2>Recomendaciones personalizadas</h2>
         <p>Aplica estas sugerencias durante algunas semanas y observa cuáles mejoran tu experiencia:</p>
         <div className="career-columns"><div>{(r.recommendations ?? top?.recommendations ?? []).map((x:string)=><span key={x}>{x}</span>)}</div></div>

@@ -2,12 +2,10 @@ import { getVisitorId } from './feedbackService'
 
 export async function trackPage(path: string) {
   try {
-    await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/public-analytics`, {
+    await fetch(`/api/public-analytics`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
-      },
+        'Content-Type': 'application/json'},
       body: JSON.stringify({
         visitorId: getVisitorId(),
         path,

@@ -1,0 +1,260 @@
+import { Firestore } from '../firestore'
+import { confirmPayment } from '../operations'
+import { env } from '../context'
+import { corsHeaders, json } from '../_shared/cors.ts'
+import { adminDb } from '../_shared/backend.ts'
+import { requireAdmin } from '../_shared/adminAuth.ts'
+import { escapeHtml, sendEmail } from '../_shared/email.ts'
+
+const qrApiBase=()=>(env().ARPALSOFT_QR_API_URL||'https://api.arpalsoft.com').trim().replace(/\/v1\/mentes-modernas\/qrs\/?$/,'').replace(/\/$/,'')
+async function qrProvider(path:string){
+  const token=env().ARPALSOFT_QR_API_TOKEN
+  if(!token)throw new Error('La integración QR no está configurada')
+  const response=await fetch(`${qrApiBase()}${path}`,{headers:{'Content-Type':'application/json','X-Client-Token':token}})
+  const body=(await response.json().catch(()=>({error:'Respuesta inválida del proveedor QR'})) as any)
+  if(!response.ok)throw new Error(body?.error||'No se pudo consultar el proveedor QR')
+  return body
+}
+
+async function count(db:any, table:string, filter?: (q:any)=>any) {
+  let q = db.from(table).select('*', { count:'exact', head:true })
+  if (filter) q = filter(q)
+  const { count, error } = await q
+  if (error) throw error
+  return count ?? 0
+}
+
+const handler = async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders(req) })
+  if (req.method !== 'POST') return json(req, { error:'Method not allowed' }, 405)
+
+  try {
+    const tokenAdmin = await requireAdmin(req)
+    const body = (await req.json() as any)
+    const action = String(body.action ?? '')
+    const db = adminDb()
+    const {data:activeAdmin,error:activeAdminError}=await db.from('admin_users').select('id,email,display_name,role,is_active').eq('id',tokenAdmin.id).maybeSingle()
+    if(activeAdminError)throw activeAdminError
+    if(!activeAdmin?.is_active)return json(req,{error:'La cuenta administrativa ya no está activa.'},403)
+    const admin={id:activeAdmin.id,email:activeAdmin.email,name:activeAdmin.display_name,role:activeAdmin.role}
+
+    if (action === 'me') return json(req, { admin })
+
+    if(action==='admins-list'){
+      if(admin.role!=='SUPERADMIN')return json(req,{error:'Solo un superadministrador puede gestionar accesos.'},403)
+      const {data,error}=await db.from('admin_users').select('id,email,display_name,role,is_active,auth_provider,last_login_at,created_at').order('created_at');if(error)throw error
+      return json(req,{items:data})
+    }
+
+    if(action==='admin-create'){
+      if(admin.role!=='SUPERADMIN')return json(req,{error:'Solo un superadministrador puede agregar administradores.'},403)
+      const email=String(body.email??'').trim().toLowerCase(),displayName=String(body.displayName??'').trim(),role=String(body.role??'ADMIN')
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!displayName)return json(req,{error:'Correo y nombre son obligatorios.'},400)
+      if(!['ADMIN','SUPERADMIN'].includes(role))return json(req,{error:'Rol no válido.'},400)
+      const {data,error}=await db.from('admin_users').upsert({email,display_name:displayName,role,is_active:true,auth_provider:'google',password_hash:null,updated_at:new Date().toISOString()},{onConflict:'email'}).select('id').single();if(error)throw error
+      await db.from('admin_audit_log').insert({admin_id:admin.id,action:'ADMIN_CREATE',entity:'admin_users',entity_id:data.id,payload:{email,role}})
+      return json(req,{ok:true})
+    }
+
+    if(action==='admin-toggle'){
+      if(admin.role!=='SUPERADMIN')return json(req,{error:'Solo un superadministrador puede cambiar accesos.'},403)
+      const id=String(body.id??''),isActive=Boolean(body.isActive)
+      if(id===admin.id&&!isActive)return json(req,{error:'No puedes desactivar tu propia cuenta.'},400)
+      const {error}=await db.from('admin_users').update({is_active:isActive,updated_at:new Date().toISOString()}).eq('id',id);if(error)throw error
+      await db.from('admin_audit_log').insert({admin_id:admin.id,action:isActive?'ADMIN_ENABLE':'ADMIN_DISABLE',entity:'admin_users',entity_id:id})
+      return json(req,{ok:true})
+    }
+
+    if (action === 'dashboard') {
+      const startToday = new Date(); startToday.setUTCHours(0,0,0,0)
+      const d30 = new Date(Date.now()-30*86400000).toISOString()
+      const [visitsToday,visits30d,totalVisits,paidPayments,unreadContacts,totalProfiles,newAccounts30d,versions,evaluations] = await Promise.all([
+        count(db,'page_visits',q=>q.gte('visited_at',startToday.toISOString())),
+        count(db,'page_visits',q=>q.gte('visited_at',d30)),
+        count(db,'page_visits'),
+        count(db,'payments',q=>q.eq('status','PAID')),
+        count(db,'contact_messages',q=>q.eq('status','NEW')),
+        count(db,'profiles'),
+        count(db,'profiles',q=>q.gte('created_at',d30)),
+        db.from('test_versions').select('id,access_level'),
+        db.from('evaluations').select('user_id,test_version_id').limit(50000)
+      ])
+      if(versions.error)throw versions.error
+      if(evaluations.error)throw evaluations.error
+      const levels=new Map((versions.data??[]).map((x:any)=>[x.id,x.access_level]))
+      const completedFree=(evaluations.data??[]).filter((x:any)=>levels.get(x.test_version_id)==='FREE').length
+      const completedPremium=(evaluations.data??[]).filter((x:any)=>levels.get(x.test_version_id)==='PREMIUM').length
+      const activity=new Map<string,number>()
+      for(const row of evaluations.data??[])activity.set(row.user_id,(activity.get(row.user_id)||0)+1)
+      const returningAccounts=[...activity.values()].filter(total=>total>1).length
+      return json(req,{visitsToday,visits30d,totalVisits,paidPayments,unreadContacts,completedFree,completedPremium,totalCompleted:completedFree+completedPremium,totalProfiles,newAccounts30d,returningAccounts})
+    }
+
+    if (action === 'content-list') {
+      const { data, error } = await db.from('site_content').select('key,value,is_active,updated_at').order('key')
+      if(error)throw error
+      return json(req,{items:data})
+    }
+
+    if (action === 'content-update') {
+      const key=String(body.key??''); const value=body.value
+      if(!key || typeof value!=='object') return json(req,{error:'Contenido inválido'},400)
+      const { error } = await db.from('site_content').upsert({
+        key,value,is_active:true,updated_at:new Date().toISOString(),updated_by:admin.id
+      })
+      if(error)throw error
+      await db.from('admin_audit_log').insert({admin_id:admin.id,action:'CONTENT_UPDATE',entity:'site_content',entity_id:key,payload:value})
+      return json(req,{ok:true})
+    }
+
+    if (action === 'payments-list') {
+      const { data, error } = await db.from('payments')
+        .select('id,created_at,amount,currency,status,receipt_url,payer_name,payer_reference,provider_transaction_id,provider_status,provider_checked_at,profiles(email),test_products(name),coupons(code)')
+        .order('created_at',{ascending:false}).limit(500)
+      if(error)throw error
+      const items=await Promise.all((data??[]).map(async(x:any)=>{
+        let receipt_url=x.receipt_url
+        if(receipt_url){const {data:signed}=await db.storage.from('payment-receipts').createSignedUrl(receipt_url,900);receipt_url=signed?.signedUrl??receipt_url}
+        return {...x,receipt_url,email:x.profiles?.email,product_name:x.test_products?.name,coupon_code:x.coupons?.code}
+      }))
+      return json(req,{items})
+    }
+
+    if(action==='qr-reconcile'){
+      const date=String(body.date??new Date().toISOString().slice(0,10))
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return json(req,{error:'Fecha no válida'},400)
+      const {data:pending,error}=await db.from('payments').select('id,user_id,amount,currency,provider_transaction_id,provider_qr_id').eq('status','PENDING').not('provider_transaction_id','is',null).order('created_at',{ascending:true}).limit(5000)
+      if(error)throw error
+      const report=await qrProvider(`/v1/mentes-modernas/payments?date=${encodeURIComponent(date)}`)
+      const bankPayments=new Map((report.payments??[]).map((payment:any)=>[String(payment.transactionId),payment]))
+      let confirmed=0,failed=0
+      for(const payment of pending??[]){
+        const bankPayment=bankPayments.get(String(payment.provider_transaction_id)) as any
+        if(!bankPayment){await db.from('payments').update({provider_checked_at:new Date().toISOString()}).eq('id',payment.id);continue}
+        try{
+          if(Number(bankPayment.amount)!==Number(payment.amount)||String(bankPayment.currency)!==String(payment.currency))throw new Error('El monto o la moneda no coincide')
+          const result={...bankPayment,status:'paid',paid:true,reportDate:date}
+          const {error:confirmError}=await db.rpc('confirm_verified_qr_payment',{p_user_id:payment.user_id,p_payment_id:payment.id,p_transaction_id:payment.provider_transaction_id,p_qr_id:String(bankPayment.qrId||payment.provider_qr_id||''),p_provider_response:result})
+            if(confirmError)throw confirmError
+            confirmed++
+        }catch{failed++}
+      }
+      const checked=(pending??[]).length,reportCount=Number(report.count??(report.payments??[]).length)
+      await db.from('admin_audit_log').insert({admin_id:admin.id,action:'QR_RECONCILE',entity:'payments',payload:{date,checked,reportCount,confirmed,failed}})
+      return json(req,{ok:true,date,checked,reportCount,confirmed,failed,message:`Reporte ${date}: ${reportCount} pagos bancarios, ${checked} QR pendientes revisados, ${confirmed} accesos confirmados y ${failed} coincidencias inválidas.`})
+    }
+
+    if (action === 'payment-review') {
+      const id=String(body.id??''), status=String(body.status??'')
+      if(!['PAID','FAILED','CANCELLED'].includes(status))return json(req,{error:'Estado inválido'},400)
+      const {data:current,error:currentError}=await db.from('payments').select('provider_transaction_id').eq('id',id).single()
+      if(currentError)throw currentError
+      if(current.provider_transaction_id&&status==='PAID')return json(req,{error:'Un pago QR solo puede aprobarse mediante confirmación de la API bancaria.'},409)
+      await confirmPayment(new Firestore(),id,{adminId:admin.id,status})
+      const {data:payment,error:pe}=await db.from('payments').select('id,user_id,product_id,profiles(email),test_products(name)').eq('id',id).single()
+      if(pe)throw pe
+      await db.from('admin_audit_log').insert({admin_id:admin.id,action:'PAYMENT_'+status,entity:'payments',entity_id:id})
+      const userEmail=(payment as any).profiles?.email
+      if(userEmail) await sendEmail({
+        to:[userEmail],
+        subject:status==='PAID'?'Tu pago fue aprobado — MentesModernas':'Actualización de tu comprobante — MentesModernas',
+        html:status==='PAID'
+          ?`<h2>Tu pago fue aprobado</h2><p>Ya puedes ingresar a <b>${escapeHtml((payment as any).test_products?.name)}</b> desde tu cuenta en MentesModernas.</p>`
+          :`<h2>No pudimos aprobar tu comprobante</h2><p>El comprobante asociado a <b>${escapeHtml((payment as any).test_products?.name)}</b> no pudo validarse. Revisa los datos y vuelve a enviarlo o comunícate con soporte.</p>`
+      })
+      return json(req,{ok:true})
+    }
+
+    if(action==='users-list'){
+      const {data,error}=await db.from('profiles').select('id,email,full_name,created_at').order('created_at',{ascending:false}).limit(500);if(error)throw error;return json(req,{items:data})
+    }
+
+    if(action==='access-grant'){
+      const email=String(body.email??'').trim().toLowerCase(), productCode=String(body.productCode??'')
+      const {data:user}=await db.from('profiles').select('id').ilike('email',email).single()
+      const {data:product}=await db.from('test_products').select('id').eq('code',productCode).eq('access_level','PREMIUM').single()
+      if(!user||!product)return json(req,{error:'Usuario o test no encontrado'},404)
+      const {error}=await db.from('test_entitlements').insert({user_id:user.id,product_id:product.id,payment_id:null,status:'AVAILABLE'});if(error)throw error
+      await db.from('admin_audit_log').insert({admin_id:admin.id,action:'ACCESS_GRANT',entity:'test_entitlements',payload:{email,productCode}});return json(req,{ok:true})
+    }
+
+    if(action==='tests-list'){
+      const {data,error}=await db.from('test_types').select('*,test_versions(*,test_questions(count),test_products(*))').order('sort_order');if(error)throw error;return json(req,{items:data})
+    }
+
+    if(action==='question-save'){
+      const item=body.item as any
+      const {error}=await db.from('test_questions').upsert({id:item.id||undefined,test_version_id:item.testVersionId,number:Number(item.number),dimension_code:String(item.dimensionCode),prompt:String(item.prompt),weight:Number(item.weight||1),is_active:item.isActive!==false});if(error)throw error;return json(req,{ok:true})
+    }
+
+    if(action==='product-price-update'){
+      const productCode=String(body.productCode??'').trim().toUpperCase(),price=Number(body.price),currency=String(body.currency??'BOB').trim().toUpperCase()
+      if(!productCode||!Number.isFinite(price)||price<=0)return json(req,{error:'Código y monto mayor a cero son obligatorios'},400)
+      if(!['BOB','USD'].includes(currency))return json(req,{error:'Moneda no válida'},400)
+      const {data,error}=await db.from('test_products').update({price,currency}).eq('code',productCode).eq('access_level','PREMIUM').select('id').single();if(error)throw error
+      await db.from('admin_audit_log').insert({admin_id:admin.id,action:'PRODUCT_PRICE_UPDATE',entity:'test_products',entity_id:data.id,payload:{productCode,price,currency}})
+      return json(req,{ok:true})
+    }
+
+    if(action==='coupon-toggle'){
+      const {error}=await db.from('coupons').update({is_active:Boolean(body.isActive)}).eq('id',String(body.id));if(error)throw error;return json(req,{ok:true})
+    }
+
+    if (action === 'contacts-list') {
+      const { data,error }=await db.from('contact_messages').select('*').order('created_at',{ascending:false}).limit(500)
+      if(error)throw error
+      return json(req,{items:data})
+    }
+
+    if (action === 'contact-status') {
+      const { error }=await db.from('contact_messages').update({status:String(body.status)}).eq('id',String(body.id))
+      if(error)throw error
+      return json(req,{ok:true})
+    }
+
+    if (action === 'analytics-summary') {
+      const now=Date.now(), day=86400000
+      const d1=new Date(now-day).toISOString(),d7=new Date(now-7*day).toISOString(),d30=new Date(now-30*day).toISOString()
+      const [today,last7d,last30d] = await Promise.all([
+        count(db,'page_visits',q=>q.gte('visited_at',d1)),
+        count(db,'page_visits',q=>q.gte('visited_at',d7)),
+        count(db,'page_visits',q=>q.gte('visited_at',d30))
+      ])
+      const { data: recent,error }=await db.from('page_visits').select('visitor_id,path').gte('visited_at',d30).limit(10000)
+      if(error)throw error
+      const unique30d=new Set((recent??[]).map((x:any)=>x.visitor_id).filter(Boolean)).size
+      const map=new Map<string,number>()
+      for(const x of recent??[])map.set(x.path,(map.get(x.path)||0)+1)
+      const topPages=[...map.entries()].sort((a,b)=>b[1]-a[1]).slice(0,20).map(([path,views])=>({path,views}))
+      return json(req,{today,last7d,last30d,unique30d,topPages})
+    }
+
+    if (action === 'coupons-list') {
+      const {data,error}=await db.from('coupons').select('*').order('created_at',{ascending:false})
+      if(error)throw error
+      return json(req,{items:data})
+    }
+
+    if (action === 'coupon-create') {
+      const code=String(body.code??'').trim().toUpperCase()
+      const discount=Number(body.discountPercent??0)
+      if(!/^[A-Z0-9_-]{3,50}$/.test(code) || !Number.isFinite(discount) || discount<0 || discount>100 || !Number.isInteger(Number(body.maxUses??1)) || Number(body.maxUses??1)<1)return json(req,{error:'Cupón inválido'},400)
+      const { data: product }=await db.from('test_products').select('id').eq('code',String(body.productCode??'VOCATIONAL_AI_2026_PREMIUM')).single()
+      if(!product)return json(req,{error:'Producto no disponible.'},400)
+      const {data:duplicate}=await db.from('coupons').select('id').eq('code',code).maybeSingle();if(duplicate)return json(req,{error:'El código ya existe.'},409)
+      const {error}=await db.from('coupons').insert({id:code,
+        code,discount_type:discount>=100?'FREE':'PERCENTAGE',discount_value:discount,
+        product_id:product?.id,max_uses:Number(body.maxUses??1),is_active:true
+      })
+      if(error)throw error
+      await db.from('admin_audit_log').insert({admin_id:admin.id,action:'COUPON_CREATE',entity:'coupons',entity_id:code})
+      return json(req,{ok:true})
+    }
+
+    return json(req,{error:'Acción no soportada'},400)
+  } catch(e) {
+    console.error(e)
+    return json(req,{error:'Sesión inválida o error administrativo.'},401)
+  }
+}
+export default handler

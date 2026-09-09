@@ -1,0 +1,1 @@
+Código histórico de Supabase, conservado para recuperación y referencia. La aplicación activa usa server/ (Cloudflare Worker), Firebase Authentication, Firestore y R2. Esta carpeta no forma parte de la compilación ni del despliegue actual. No desplegar estas funciones sobre Firebase.

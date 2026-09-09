@@ -11,9 +11,9 @@ export default function ContactPage() {
 
   const submit = async (e:React.FormEvent) => {
     e.preventDefault(); setStatus('Enviando...')
-    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/public-contact`, {
+    const res = await fetch(`/api/public-contact`, {
       method:'POST',
-      headers:{'Content-Type':'application/json',apikey:import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY},
+      headers:{'Content-Type':'application/json'},
       body:JSON.stringify(form)
     })
     setStatus(res.ok ? '¡Gracias! Recibimos tu mensaje.' : 'No fue posible enviar el mensaje.')

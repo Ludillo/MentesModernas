@@ -6,19 +6,32 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "prebuild": "node scripts/configure.mjs",
+    "check": "wrangler types && tsc -b && tsc -p tsconfig.server.json",
+    "test": "node --test scripts/career2026.test.mjs",
+    "test:firebase": "node scripts/verify-firebase.mjs",
+    "test:payments": "tsx scripts/payment-transactions.test.ts",
+    "dev:api": "wrangler dev",
+    "deploy": "npm run build && wrangler deploy",
+    "deploy:rules": "firebase deploy --only firestore --project mentesmodernas-arpal"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.57.4",
+    "firebase": "^12.18.0",
+    "jose": "^6.2.12",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.8.2"
   },
   "devDependencies": {
+    "@types/node": "^26.5.0",
     "@types/react": "^19.1.12",
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^5.0.2",
+    "firebase-admin": "^14.3.0",
+    "tsx": "^4.23.13",
     "typescript": "^5.9.2",
-    "vite": "^7.1.4"
+    "vite": "^7.1.4",
+    "wrangler": "^4.130.0"
   }
 }

@@ -6,3 +6,12 @@ supabase/.temp/
 .env.local
 .supabase
 .DS_Store
+work/
+
+.dev.vars*
+*.private.*
+worker-configuration.d.ts
+
+.wrangler/
+*.tsbuildinfo
+legacy/supabase/.temp/

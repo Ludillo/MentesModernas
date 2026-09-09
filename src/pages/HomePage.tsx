@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import LogoHero from '../components/LogoHero'
 import { loadContent } from '../services/contentService'
+import Career2026Promo from '../components/Career2026Promo'
 
 export default function HomePage() {
   const navigate=useNavigate()
@@ -37,6 +38,7 @@ export default function HomePage() {
         <LogoHero src={content.brand?.logo_url} />
       </section>
 
+      <div className="page"><Career2026Promo/></div>
       <section className="impact-strip" aria-label="Indicadores de MentesModernas">
         <div><span className="impact-icon">▥</span><strong>+{Number(stats.completed_tests).toLocaleString('es-BO')}</strong><small>Tests completados</small></div>
         <div><span className="impact-icon">♧</span><strong>+{Number(stats.active_users).toLocaleString('es-BO')}</strong><small>Usuarios activos</small></div>

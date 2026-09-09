@@ -1,9 +1,9 @@
-import { supabase } from '../lib/supabase'
+import { backend } from '../lib/backend'
 import { AREA_META } from '../lib/catalog'
 import type { AreaCode, AreaResult, TestQuestion } from '../types/models'
 
 export async function getQuestions(testCode: string): Promise<TestQuestion[]> {
-  const { data, error } = await supabase
+  const { data, error } = await backend
     .rpc('get_active_test_questions', { p_test_code: testCode })
 
   if (error) throw error
@@ -42,29 +42,30 @@ export async function submitPremiumResult(payload: {
   answers: Record<string, number>
   results: AreaResult[]
 }) {
-  const { data: sessionData } = await supabase.auth.getSession()
+  const { data: sessionData } = await backend.auth.getSession()
   const accessToken = sessionData.session?.access_token
   if (!accessToken) throw new Error('Debes ingresar para guardar un test premium.')
 
-  const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/submit-premium-result`, {
+  const attemptKey='mm_submission_'+payload.testCode
+  const requestId=sessionStorage.getItem(attemptKey)??crypto.randomUUID()
+  sessionStorage.setItem(attemptKey,requestId)
+  const res = await fetch(`/api/submit-premium-result`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${accessToken}`,
-      apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
-    },
-    body: JSON.stringify(payload)
+      Authorization: `Bearer ${accessToken}`},
+    body: JSON.stringify({...payload,requestId})
   })
   if (!res.ok) throw new Error((await res.json()).error ?? 'No se pudo guardar el resultado')
-  return res.json()
+  const saved=await res.json();sessionStorage.removeItem(attemptKey);return saved
 }
 
 export async function submitFreeResult(payload:{testCode:string;answers:Record<string,number>}){
-  const {data:sessionData}=await supabase.auth.getSession()
+  const {data:sessionData}=await backend.auth.getSession()
   const accessToken=sessionData.session?.access_token
   if(!accessToken)return null
-  const res=await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/submit-free-result`,{
-    method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${accessToken}`,apikey:import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY},body:JSON.stringify(payload)
+  const res=await fetch(`/api/submit-free-result`,{
+    method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${accessToken}`},body:JSON.stringify(payload)
   })
   const data=await res.json()
   if(!res.ok)throw new Error(data.error??'No se pudo guardar el resultado gratuito.')

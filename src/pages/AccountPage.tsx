@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { backend } from '../lib/backend'
 import { Link } from 'react-router-dom'
 import { signOut } from '../services/authService'
 
@@ -16,21 +16,21 @@ export default function AccountPage() {
     if (!window.confirm('¿Seguro que quieres borrar este resultado? Esta acción no se puede deshacer.')) return
     setDeletingId(id)
     setDeleteError('')
-    const {error} = await supabase.from('evaluations').delete().eq('id', id)
+    const {error} = await backend.from('evaluations').delete().eq('id', id)
     if (error) setDeleteError('No pudimos borrar el resultado. Inténtalo nuevamente.')
     else setEvaluations(current => current.filter(item => item.id !== id))
     setDeletingId(null)
   }
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({data}) => {
+    backend.auth.getSession().then(async ({data}) => {
       setSession(data.session)
       if (data.session) {
         const [e, t, c, p] = await Promise.all([
-          supabase.from('evaluations').select('id,completed_at,result_json,test_types(name),test_versions(code,access_level)').order('completed_at', {ascending:false}),
-          supabase.from('test_entitlements').select('id,status,created_at,test_products(name,code)').eq('status','AVAILABLE'),
-          supabase.rpc('get_test_catalog'),
-          supabase.from('payments').select('id,status,created_at,amount,currency,test_products(name,code)').order('created_at',{ascending:false})
+          backend.from('evaluations').select('id,completed_at,result_json,test_types(name),test_versions(code,access_level)').order('completed_at', {ascending:false}),
+          backend.from('test_entitlements').select('id,status,created_at,test_products(name,code)').eq('status','AVAILABLE'),
+          backend.rpc('get_test_catalog'),
+          backend.from('payments').select('id,status,created_at,amount,currency,test_products(name,code)').order('created_at',{ascending:false})
         ])
         setEvaluations(e.data ?? [])
         setEntitlements(t.data ?? [])
@@ -71,7 +71,7 @@ export default function AccountPage() {
       </section>
       <section className="account-tests-section">
       <h2>Tests disponibles</h2>
-      <p className="section-lead">Elige el test que deseas realizar. Todos tienen una versión gratuita y otra avanzada.</p>
+      <p className="section-lead">Elige el test que deseas realizar. Encuentra evaluaciones gratuitas y avanzadas.</p>
       <div className="account-test-grid">
         {catalog.map((x:any)=>{
           const available=entitlements.some((e:any)=>e.test_products?.code===x.premium_code)
@@ -79,7 +79,7 @@ export default function AccountPage() {
             <div className="account-test-icon">{x.icon}</div>
             <div><span className="plan-tag">{available?'ACCESO AVANZADO DISPONIBLE':'ELIGE TU MODALIDAD'}</span><h3>{x.name}</h3><p>{x.description}</p></div>
             <div className="account-test-actions">
-              <Link className="btn secondary" to={`/test/${x.free_code}`}>Gratis · {x.free_questions} preguntas</Link>
+              {x.free_code && <Link className="btn secondary" to={`/test/${x.free_code}`}>Gratis · {x.free_questions} preguntas</Link>}
               <Link className="btn primary" to={available?`/test/${x.premium_code}`:`/acceso/${x.premium_code}`}>{available?'Iniciar avanzado':`Avanzado · ${x.price} ${x.currency}`}</Link>
             </div>
           </article>

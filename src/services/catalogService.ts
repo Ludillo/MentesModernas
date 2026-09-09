@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase'
+import { backend } from '../lib/backend'
 
 export type TestCatalogItem = {
   type_code:string
@@ -14,7 +14,7 @@ export type TestCatalogItem = {
 }
 
 export async function getTestCatalog():Promise<TestCatalogItem[]> {
-  const {data,error}=await supabase.rpc('get_test_catalog')
+  const {data,error}=await backend.rpc('get_test_catalog')
   if(error)throw error
   return (data??[]) as TestCatalogItem[]
 }

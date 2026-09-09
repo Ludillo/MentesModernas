@@ -4,7 +4,7 @@ import type { TestQuestion } from '../types/models'
 type Props = {
   title: string
   questions: TestQuestion[]
-  onFinish: (answers: Record<string, number>) => void
+  onFinish: (answers: Record<string, number>) => void | Promise<void>
 }
 
 const options = [
@@ -17,6 +17,8 @@ const options = [
 
 export default function TestRunner({ title, questions, onFinish }: Props) {
   const [current, setCurrent] = useState(0)
+  const [saving,setSaving]=useState(false)
+  const [saveError,setSaveError]=useState('')
   const [answers, setAnswers] = useState<Record<string, number>>({})
   const questionTopRef = useRef<HTMLDivElement | null>(null)
 
@@ -50,11 +52,13 @@ export default function TestRunner({ title, questions, onFinish }: Props) {
     return <div className="panel">No existen preguntas activas para este test.</div>
   }
 
-  const next = () => {
+  const next = async () => {
+    if(saving)return
     if (answers[q.id] === undefined) return
 
     if (current === questions.length - 1) {
-      onFinish(answers)
+      setSaving(true);setSaveError('')
+      try{await onFinish(answers)}catch(e){setSaveError(e instanceof Error?e.message:'No se pudo guardar. Puedes volver a intentarlo sin perder tus respuestas.')}finally{setSaving(false)}
       return
     }
 
@@ -100,6 +104,7 @@ export default function TestRunner({ title, questions, onFinish }: Props) {
           {options.map(o => (
             <button
               key={o.value}
+              disabled={saving}
               className={answers[q.id] === o.value ? 'answer selected' : 'answer'}
               onClick={() => setAnswers({ ...answers, [q.id]: o.value })}
             >
@@ -110,10 +115,11 @@ export default function TestRunner({ title, questions, onFinish }: Props) {
           ))}
         </div>
 
+        {saveError&&<p className="alert error" role="alert">{saveError}</p>}
         <div className="wizard-actions">
           <button
             className="btn secondary"
-            disabled={current === 0}
+            disabled={current === 0 || saving}
             onClick={previous}
           >
             ← Anterior
@@ -121,10 +127,10 @@ export default function TestRunner({ title, questions, onFinish }: Props) {
 
           <button
             className="btn primary"
-            disabled={answers[q.id] === undefined}
+            disabled={answers[q.id] === undefined || saving}
             onClick={next}
           >
-            {current === questions.length - 1
+            {saving?'Guardando resultado…':current === questions.length - 1
               ? 'Ver mi resultado →'
               : 'Siguiente →'}
           </button>

@@ -1,5 +1,6 @@
 import { corsHeaders, json } from '../_shared/cors.ts'
-import { requireUser } from '../_shared/supabase.ts'
+import { requireUser } from '../_shared/backend.ts'
+import { buildCareerReport, CAREER_CODE } from '../../shared/career2026.ts'
 
 const AREA_META: Record<string,{name:string,description:string,careers:string[],recommendations:string[]}> = {
   R:{name:'Realista / Técnica',description:'Interés por construir, implementar, operar tecnología y resolver problemas concretos.',careers:['Ingenierías','Arquitectura','Mecánica','Electrónica','Logística','Agronomía'],recommendations:['Explora proyectos técnicos y experiencias prácticas.']},
@@ -22,15 +23,16 @@ const AREA_META: Record<string,{name:string,description:string,careers:string[],
   INATTENTION:{name:'Atención sostenida',description:'Frecuencia de distracción o dificultad para mantener la atención.',careers:[],recommendations:['Trabaja en bloques breves y consulta si el impacto es persistente.']},HYPERACTIVITY:{name:'Actividad e inquietud',description:'Experiencias de inquietud física o mental y búsqueda de estimulación.',careers:[],recommendations:['Incluye pausas activas planificadas.']},IMPULSIVITY:{name:'Impulsividad y autorregulación',description:'Frecuencia de actuar o hablar antes de valorar consecuencias.',careers:[],recommendations:['Introduce una pausa antes de decisiones importantes.']},EXECUTIVE_FUNCTION:{name:'Organización y funciones ejecutivas',description:'Dificultades percibidas para iniciar, priorizar y finalizar actividades.',careers:[],recommendations:['Usa una agenda visible y define el siguiente paso concreto.']}
 }
 
-Deno.serve(async(req)=>{
+const handler = async(req)=>{
   if(req.method==='OPTIONS')return new Response('ok',{headers:corsHeaders(req)})
   if(req.method!=='POST')return json(req,{error:'Method not allowed'},405)
 
   try{
     const {user,db}=await requireUser(req)
-    const b=await req.json()
+    const b=(await req.json() as any)
     const testCode=String(b.testCode??'')
     const answers=b.answers??{}
+    if(!/^[0-9a-f-]{36}$/i.test(String(b.requestId??'')))throw Error('Identificador de envío inválido.')
 
     if(!testCode.endsWith('_PREMIUM')) return json(req,{error:'Test inválido.'},400)
 
@@ -52,8 +54,8 @@ Deno.serve(async(req)=>{
     const counts:Record<string,number>={R:0,I:0,A:0,S:0,E:0,C:0}
     for(const q of questions??[]){
       if(!validIds.has(q.id))throw new Error('Pregunta inválida')
-      const value=Number(answers[q.id])
-      if(!Number.isInteger(value)||value<0||value>4)return json(req,{error:'Existe una respuesta inválida.'},400)
+      const value=answers[q.id]
+      if(typeof value!=='number'||!Number.isInteger(value)||value<0||value>4)return json(req,{error:'Existe una respuesta inválida.'},400)
       counts[q.dimension_code]=(counts[q.dimension_code]||0)+1
       totals[q.dimension_code]=(totals[q.dimension_code]||0)+value
     }
@@ -79,7 +81,7 @@ Deno.serve(async(req)=>{
     const medium=unique(results.slice(2,4).flatMap(x=>x.careers??[])).slice(0,10)
 
     const isVocational=testCode.startsWith('VOCATIONAL_')
-    const resultJson={
+    const resultJson=testCode===CAREER_CODE?buildCareerReport(questions??[],answers):{
       results,
       primaryArea:top?.code,
       secondaryArea:second?.code,
@@ -91,7 +93,7 @@ Deno.serve(async(req)=>{
     }
 
     const {data,error}=await db.rpc('finalize_premium_evaluation',{
-      p_user_id:user.id,p_test_code:testCode,p_answers:answers,p_scores:scores,p_result:resultJson
+      p_request_id:b.requestId,p_user_id:user.id,p_test_code:testCode,p_answers:answers,p_scores:scores,p_result:resultJson
     })
     if(error)throw error
     return json(req,{ok:true,evaluationId:data})
@@ -99,4 +101,5 @@ Deno.serve(async(req)=>{
     console.error(e)
     return json(req,{error:e.message??'No se pudo finalizar la evaluación.'},400)
   }
-})
+}
+export default handler

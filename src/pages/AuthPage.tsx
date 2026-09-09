@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   sendEmailOtp,
   signInWithGoogle,
@@ -17,6 +17,9 @@ export default function AuthPage() {
   const [mode,setMode]=useState<'password'|'otp'>('password')
 
   const navigate = useNavigate()
+  const requestedNext = new URLSearchParams(window.location.search).get('next')
+  const nextPath = requestedNext && /^\/acceso\/[A-Z0-9_]+$/.test(requestedNext) ? requestedNext : '/cuenta'
+  useEffect(()=>{sessionStorage.setItem('mm_auth_return_to',nextPath)},[nextPath])
 
   const send = async () => {
     setMsg('')
@@ -37,7 +40,7 @@ export default function AuthPage() {
     try {
       await verifyEmailOtp(email, otp)
 
-      navigate('/cuenta')
+      navigate(nextPath)
     } catch (e: any) {
       setMsg(e.message)
     }
@@ -62,7 +65,7 @@ export default function AuthPage() {
         <button
           type="button"
           className="google-btn google-btn--brand"
-          onClick={signInWithGoogle}
+          onClick={async()=>{try{await signInWithGoogle()}catch(e:any){setMsg(e.message)}}}
         >
           <span
             className="google-mark"
@@ -122,7 +125,7 @@ export default function AuthPage() {
         {mode==='password' ? <>
           <label>Nombre (solo para registro)<input value={fullName} onChange={e=>setFullName(e.target.value)} autoComplete="name" /></label>
           <label>Contraseña<input type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password" minLength={8}/></label>
-          <div className="card-actions"><button className="btn primary" onClick={async()=>{try{await signInWithPassword(email,password);navigate('/cuenta')}catch(e:any){setMsg(e.message)}}}>Ingresar</button><button className="btn secondary" onClick={async()=>{try{await signUpWithPassword(email,password,fullName);setMsg('Cuenta creada. Revisa tu correo si se requiere confirmación.')}catch(e:any){setMsg(e.message)}}}>Crear cuenta</button></div>
+          <div className="card-actions"><button className="btn primary" onClick={async()=>{try{await signInWithPassword(email,password);navigate(nextPath)}catch(e:any){setMsg(e.message)}}}>Ingresar</button><button className="btn secondary" onClick={async()=>{try{await signUpWithPassword(email,password,fullName);setMsg('Cuenta creada. Revisa tu correo si se requiere confirmación.')}catch(e:any){setMsg(e.message)}}}>Crear cuenta</button></div>
         </> : !sent ? (
           <button
             type="button"
