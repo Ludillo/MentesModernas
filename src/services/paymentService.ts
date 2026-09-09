@@ -1,3 +1,4 @@
+import { paymentErrorMessage } from '../../shared/payment-errors'
 import { backend } from '../lib/backend'
 
 export async function validatePayment(
@@ -60,7 +61,7 @@ export type QrPayment={paymentId:string;amount:number;currency:string;productNam
 async function qrRequest(body:Record<string,unknown>){
  const {data}=await backend.auth.getSession();const token=data.session?.access_token;if(!token)throw new Error('Debes autenticarte antes de continuar.')
  const res=await fetch(`/api/payment-qr`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify(body)})
- const payload=await res.json();if(!res.ok)throw new Error(payload?.error||'No se pudo procesar el pago QR.');return payload
+ const payload=await res.json();if(!res.ok)throw new Error(paymentErrorMessage(payload));return payload
 }
 
 export async function generatePaymentQr(productCode:string):Promise<QrPayment>{return qrRequest({action:'generate',productCode})}

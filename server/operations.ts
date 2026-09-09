@@ -12,10 +12,10 @@ export async function confirmPayment(db:Firestore,paymentId:string,options:{user
     if(p.provider_transaction_id&&status==='PAID'){
       const r=options.provider
       if(!r||r.paid!==true||!options.transactionId||p.provider_transaction_id!==options.transactionId)throw Error('La aprobación requiere confirmación bancaria.')
-      if(r.amount!==undefined&&Number(r.amount)!==Number(p.amount)||r.currency!==undefined&&r.currency!==p.currency||r.transactionId!==undefined&&String(r.transactionId)!==p.provider_transaction_id)throw Error('La confirmación bancaria no coincide.')
+      if(r.amount!==undefined&&Number(r.amount)!==Number(p.amount)||r.currency!==undefined&&r.currency!==p.currency||r.transactionId!==undefined&&String(r.transactionId)!==p.provider_transaction_id||r.qrId&&p.provider_qr_id&&String(r.qrId)!==String(p.provider_qr_id))throw Error('La confirmación bancaria no coincide.')
     }else if(!options.adminId&&status==='PAID')throw Error('Revisión administrativa requerida.')
     const id=existing?.id??`payment-${p.id}`
-    await tx.put('payments',p.id,{status,paid_at:status==='PAID'?now():null,reviewed_at:now(),...(options.adminId?{reviewed_by:options.adminId}:{}),...(options.provider?{provider_status:'paid',provider_checked_at:now(),callback_response:options.provider}:{})},true)
+    await tx.put('payments',p.id,{status,paid_at:status==='PAID'?now():null,reviewed_at:now(),...(options.adminId?{reviewed_by:options.adminId}:{}),...(options.provider?{provider_status:'paid',provider_checked_at:now(),callback_response:options.provider,...(options.provider.qrId?{provider_qr_id:String(options.provider.qrId)}:{})}:{})},true)
     if(status==='PAID'&&!existing)await tx.put('test_entitlements',id,{id,user_id:p.user_id,product_id:p.product_id,payment_id:p.id,status:'AVAILABLE',created_at:now()},false,true)
     return id
   })

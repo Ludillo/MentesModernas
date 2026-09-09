@@ -6,15 +6,7 @@ import { adminDb } from '../_shared/backend.ts'
 import { requireAdmin } from '../_shared/adminAuth.ts'
 import { escapeHtml, sendEmail } from '../_shared/email.ts'
 
-const qrApiBase=()=>(env().ARPALSOFT_QR_API_URL||'https://api.arpalsoft.com').trim().replace(/\/v1\/mentes-modernas\/qrs\/?$/,'').replace(/\/$/,'')
-async function qrProvider(path:string){
-  const token=env().ARPALSOFT_QR_API_TOKEN
-  if(!token)throw new Error('La integración QR no está configurada')
-  const response=await fetch(`${qrApiBase()}${path}`,{headers:{'Content-Type':'application/json','X-Client-Token':token}})
-  const body=(await response.json().catch(()=>({error:'Respuesta inválida del proveedor QR'})) as any)
-  if(!response.ok)throw new Error(body?.error||'No se pudo consultar el proveedor QR')
-  return body
-}
+import { qrProvider, QrProviderError } from '../qr-provider'
 
 async function count(db:any, table:string, filter?: (q:any)=>any) {
   let q = db.from(table).select('*', { count:'exact', head:true })
@@ -253,6 +245,7 @@ const handler = async (req) => {
 
     return json(req,{error:'Acción no soportada'},400)
   } catch(e) {
+    if(e instanceof QrProviderError)return json(req,{error:e.message},502)
     console.error(e)
     return json(req,{error:'Sesión inválida o error administrativo.'},401)
   }

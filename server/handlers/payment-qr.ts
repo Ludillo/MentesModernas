@@ -1,16 +1,7 @@
-import { env } from '../context'
 import { corsHeaders, json } from '../_shared/cors.ts'
 import { requireUser } from '../_shared/backend.ts'
 
-const configuredApi=()=>(env().ARPALSOFT_QR_API_URL||'https://api.arpalsoft.com').trim()
-const apiBase=()=>configuredApi().replace(/\/v1\/mentes-modernas\/qrs\/?$/,'').replace(/\/$/,'')
-const apiToken=()=>{const value=env().ARPALSOFT_QR_API_TOKEN;if(!value)throw new Error('La integración QR no está configurada');return value}
-async function provider(path:string,init:RequestInit={}){
-  const response=await fetch(`${apiBase()}${path}`,{...init,headers:{'Content-Type':'application/json','X-Client-Token':apiToken(),...(init.headers||{})}})
-  const body=(await response.json().catch(()=>({error:'Respuesta inválida del proveedor QR'})) as any)
-  if(!response.ok)throw new Error(body?.error||'No se pudo comunicar con el proveedor QR')
-  return body
-}
+import { qrProvider as provider, validateGeneratedQr, validateQrStatus } from '../qr-provider'
 
 const handler = async(req:Request)=>{
   if(req.method==='OPTIONS')return new Response(null,{status:204,headers:corsHeaders(req)})
@@ -25,6 +16,7 @@ const handler = async(req:Request)=>{
       try{
         const dueDate=new Date(Date.now()+24*60*60*1000).toISOString().slice(0,10)
         const qr=await provider('/v1/mentes-modernas/qrs',{method:'POST',body:JSON.stringify({sessionId:payment.session_id,amount:Number(payment.amount),currency:payment.currency,description:`Pago de test ${payment.product_name}`.slice(0,100),dueDate,singleUse:true,modifyAmount:false,branchCode:'01'})})
+        validateGeneratedQr(qr)
         const {error:updateError}=await db.from('payments').update({transaction_reference:`QR-${qr.transactionId}`,provider_transaction_id:String(qr.transactionId),provider_qr_id:String(qr.qrId||''),provider_status:String(qr.status||'pending'),qr_payload:qr.qrImage||null,callback_response:qr}).eq('id',payment.payment_id).eq('user_id',user.id)
         if(updateError)throw updateError
         return json(req,{paymentId:payment.payment_id,amount:payment.amount,currency:payment.currency,productName:payment.product_name,transactionId:String(qr.transactionId),qrId:qr.qrId,qrImage:qr.qrImage,dueDate:qr.dueDate,status:'pending'})
@@ -37,7 +29,9 @@ const handler = async(req:Request)=>{
       if(payment.status==='PAID')return json(req,{paid:true,accessGranted:true,status:'paid'})
       if(payment.status!=='PENDING'||!payment.provider_transaction_id||!payment.qr_session_id)throw new Error('La solicitud no está disponible para verificación')
       const result=await provider(`/v1/mentes-modernas/qrs/${encodeURIComponent(payment.provider_transaction_id)}/status?sessionId=${encodeURIComponent(payment.qr_session_id)}`)
-      await db.from('payments').update({provider_status:String(result.status||'pending'),provider_checked_at:new Date().toISOString(),callback_response:result}).eq('id',payment.id)
+      validateQrStatus(result,payment.provider_transaction_id)
+      const {error:statusError}=await db.from('payments').update({provider_status:String(result.status||'pending'),provider_checked_at:new Date().toISOString(),callback_response:result}).eq('id',payment.id).eq('status','PENDING')
+      if(statusError)throw statusError
       if(result.paid!==true)return json(req,{paid:false,accessGranted:false,status:result.status||'pending',message:'El Banco Económico todavía no reporta este pago. Si acabas de pagar, espera un momento y vuelve a verificar.'})
       const {error:confirmError}=await db.rpc('confirm_verified_qr_payment',{p_user_id:user.id,p_payment_id:payment.id,p_transaction_id:payment.provider_transaction_id,p_qr_id:String(result.qrId||payment.provider_qr_id||''),p_provider_response:result})
       if(confirmError)throw confirmError
