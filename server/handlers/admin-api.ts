@@ -6,7 +6,7 @@ import { adminDb } from '../_shared/backend.ts'
 import { requireAdmin } from '../_shared/adminAuth.ts'
 import { escapeHtml, sendEmail } from '../_shared/email.ts'
 
-import { qrProvider, QrProviderError } from '../qr-provider'
+import { qrProvider, QrProviderError, bankDate } from '../qr-provider'
 
 async function count(db:any, table:string, filter?: (q:any)=>any) {
   let q = db.from(table).select('*', { count:'exact', head:true })
@@ -113,19 +113,19 @@ const handler = async (req) => {
     }
 
     if(action==='qr-reconcile'){
-      const date=String(body.date??new Date().toISOString().slice(0,10))
+      const date=String(body.date??bankDate())
       if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return json(req,{error:'Fecha no válida'},400)
       const {data:pending,error}=await db.from('payments').select('id,user_id,amount,currency,provider_transaction_id,provider_qr_id').eq('status','PENDING').not('provider_transaction_id','is',null).order('created_at',{ascending:true}).limit(5000)
       if(error)throw error
       const report=await qrProvider(`/v1/mentes-modernas/payments?date=${encodeURIComponent(date)}`)
-      const bankPayments=new Map((report.payments??[]).map((payment:any)=>[String(payment.transactionId),payment]))
+      const bankPayments=new Map((report.payments??[]).map((payment:any)=>[String(payment.qrId),payment]))
       let confirmed=0,failed=0
       for(const payment of pending??[]){
-        const bankPayment=bankPayments.get(String(payment.provider_transaction_id)) as any
-        if(!bankPayment){await db.from('payments').update({provider_checked_at:new Date().toISOString()}).eq('id',payment.id);continue}
+        const bankPayment=bankPayments.get(String(payment.provider_qr_id)) as any
+        if(!payment.provider_qr_id||!bankPayment){await db.from('payments').update({provider_checked_at:new Date().toISOString()}).eq('id',payment.id);continue}
         try{
           if(Number(bankPayment.amount)!==Number(payment.amount)||String(bankPayment.currency)!==String(payment.currency))throw new Error('El monto o la moneda no coincide')
-          const result={...bankPayment,status:'paid',paid:true,reportDate:date}
+          const result={...bankPayment,bankTransactionId:bankPayment.transactionId,transactionId:payment.provider_transaction_id,status:'paid',paid:true,reportDate:date}
           const {error:confirmError}=await db.rpc('confirm_verified_qr_payment',{p_user_id:payment.user_id,p_payment_id:payment.id,p_transaction_id:payment.provider_transaction_id,p_qr_id:String(bankPayment.qrId||payment.provider_qr_id||''),p_provider_response:result})
             if(confirmError)throw confirmError
             confirmed++

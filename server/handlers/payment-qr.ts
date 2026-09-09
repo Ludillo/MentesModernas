@@ -1,7 +1,7 @@
 import { corsHeaders, json } from '../_shared/cors.ts'
 import { requireUser } from '../_shared/backend.ts'
 
-import { qrProvider as provider, validateGeneratedQr, validateQrStatus } from '../qr-provider'
+import { qrProvider as provider, validateGeneratedQr, verifiedQrStatus } from '../qr-provider'
 
 const handler = async(req:Request)=>{
   if(req.method==='OPTIONS')return new Response(null,{status:204,headers:corsHeaders(req)})
@@ -24,12 +24,11 @@ const handler = async(req:Request)=>{
     }
     if(action==='status'){
       const paymentId=String(body.paymentId||'')
-      const {data:payment,error}=await db.from('payments').select('id,status,provider_transaction_id,provider_qr_id,qr_session_id').eq('id',paymentId).eq('user_id',user.id).single()
+      const {data:payment,error}=await db.from('payments').select('id,status,provider_transaction_id,provider_qr_id,qr_session_id,created_at').eq('id',paymentId).eq('user_id',user.id).single()
       if(error||!payment)throw new Error('Solicitud de pago no encontrada')
       if(payment.status==='PAID')return json(req,{paid:true,accessGranted:true,status:'paid'})
       if(payment.status!=='PENDING'||!payment.provider_transaction_id||!payment.qr_session_id)throw new Error('La solicitud no está disponible para verificación')
-      const result=await provider(`/v1/mentes-modernas/qrs/${encodeURIComponent(payment.provider_transaction_id)}/status?sessionId=${encodeURIComponent(payment.qr_session_id)}`)
-      validateQrStatus(result,payment.provider_transaction_id)
+      const result=await verifiedQrStatus(payment)
       const {error:statusError}=await db.from('payments').update({provider_status:String(result.status||'pending'),provider_checked_at:new Date().toISOString(),callback_response:result}).eq('id',payment.id).eq('status','PENDING')
       if(statusError)throw statusError
       if(result.paid!==true)return json(req,{paid:false,accessGranted:false,status:result.status||'pending',message:'El Banco Económico todavía no reporta este pago. Si acabas de pagar, espera un momento y vuelve a verificar.'})
